@@ -1,5 +1,3 @@
-import { preventTabbing } from '@elastic/eui/src/components/datagrid/utils/focus';
-import { number } from 'prop-types';
 import { Client } from 'ssh2';
 import { loadConfig, Config } from './conf';
 import { ServerLogins } from './serverlogins';
@@ -9,6 +7,7 @@ export class SshFetchStats {
     srvStats: LinuxSession[] = [];
 
     constructor() {
+        console.log('..')
     }
     async start() {
         const config = await loadConfig();
@@ -21,14 +20,14 @@ export class SshFetchStats {
         };
     }
 
-    calculateCpuLoad(s: LinuxSession, data: String) {
+    calculateCpuLoad(s: LinuxSession, data: string) {
         const lines = data.split('\n');
         if (lines.length == 0) {
             console.log('data empty');
             return;
         }
         const firstLine = lines[0];
-        var fields = firstLine.split(/\s+/);
+        const fields = firstLine.split(/\s+/);
         if (fields.length < 9) {
             console.log('data first line must > 8');
             return;
@@ -313,7 +312,7 @@ const OnlineStatus = {
 
 export class DiskStat {
     name: string
-    usePercent: Number
+    usePercent: number
 }
 
 export class LinuxStat {
@@ -329,7 +328,7 @@ export class LinuxSession {
     stat: LinuxStat = new LinuxStat()
     serverLogins: ServerLogins
     conn: Client
-    closing: boolean = false
+    closing = false
     prev: PrevData
 }
 
@@ -342,5 +341,6 @@ class PrevData {
     irq: number
     softirq: number
     steal: number
-};
+}
+
 

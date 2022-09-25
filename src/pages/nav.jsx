@@ -1,9 +1,7 @@
 import React from 'react';
 import {
-  EuiIcon,
   EuiButtonIcon,
   EuiCollapsibleNav,
-  EuiButton,
   EuiTitle,
   EuiSpacer,
   EuiText,
@@ -15,8 +13,8 @@ export class NavProps {
   navIsDocked = false
 }
 
-export class Nav extends React.Component<NavProps, {navIsOpen: boolean, navIsDocked: boolean}> {
-  constructor(props:NavProps) {
+export class Nav extends React.Component {
+  constructor(props) {
     super(props);
     this.state = {
       ...props
@@ -25,9 +23,9 @@ export class Nav extends React.Component<NavProps, {navIsOpen: boolean, navIsDoc
 
   render() {
     const showNavButton = <EuiButtonIcon
-                            iconType="menu"
-                            onClick={ () => this.setNavIsOpen(!this.state.navIsOpen) }
-                            size="m"/>;
+      iconType="menu"
+      onClick={() => this.setNavIsOpen(!this.state.navIsOpen)}
+      size="m" />;
     return (
       <>
         <EuiCollapsibleNav
@@ -35,7 +33,7 @@ export class Nav extends React.Component<NavProps, {navIsOpen: boolean, navIsDoc
           button={showNavButton}
           isOpen={this.state.navIsOpen}
           isDocked={this.state.navIsDocked}
-          onClose={ () => this.setNavIsOpen(false) }
+          onClose={() => this.setNavIsOpen(false)}
         >
 
           <div style={{ padding: 16 }}>
@@ -67,13 +65,13 @@ export class Nav extends React.Component<NavProps, {navIsOpen: boolean, navIsDoc
     );
   }
 
-  setNavIsOpen(isOpen: boolean) {
+  setNavIsOpen(isOpen) {
     console.log("isNavOpen: " + isOpen);
-    this.setState({navIsOpen: isOpen});
+    this.setState({ navIsOpen: isOpen });
   }
 
-  setNavIsDocked(isDocked: boolean) {
+  setNavIsDocked(isDocked) {
     console.log("isNavDocked: " + isDocked);
-    this.setState({navIsDocked: isDocked});
+    this.setState({ navIsDocked: isDocked });
   }
 }
