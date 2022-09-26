@@ -3,6 +3,8 @@ import { app } from 'electron';
 import { VersionStr } from './version';
 import { promises as fs } from "fs"
 import { ServerLogins } from './serverlogins';
+import { v4 as uuidv4 } from 'uuid';
+
 
 import path from 'path';
 
@@ -24,6 +26,7 @@ export async function loadConfig(): Promise<Config> {
         const content = await fs.readFile(configFilePath, 'utf8');
         console.log("loading config from ", configFilePath)
         const res = JSON.parse(content);
+        console.log("-----------------------", res)
         return res;
     } catch (e: any) {
         console.log("err: ", e);
@@ -40,13 +43,17 @@ export async function storeConfig(config: Config) {
 
 export async function putServerConfig(arg: ServerLogins) {
     const config = await loadConfig();
-    for (let i = 0; i < config.servers.length; ++i) {
-        if (config.servers[i].uuid == arg.uuid) {
-            config.servers[i] = arg;
-            return;
+    if (!arg.uuid) {
+        arg.uuid = uuidv4();
+        config.servers.push(arg);
+    } else {
+        for (let i = 0; i < config.servers.length; ++i) {
+            if (config.servers[i].uuid == arg.uuid) {
+                config.servers[i] = arg;
+                break;
+            }
         }
     }
-    config.servers.push(arg);
     await storeConfig(config);
 }
 

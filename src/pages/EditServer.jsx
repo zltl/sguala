@@ -2,40 +2,24 @@ import React, { useState } from 'react';
 import {
   EuiTextArea,
   EuiFieldPassword,
-  EuiSwitch,
-  EuiPopover,
-  EuiPopoverTitle,
-  EuiPopoverFooter,
   EuiButton,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiTextColor,
-  EuiButtonIcon,
-  EuiCheckboxGroup,
   EuiFieldText,
   EuiForm,
   EuiFormRow,
-  EuiFilePicker,
-  EuiLink,
   EuiFieldNumber,
-  EuiRange,
-  EuiSelect,
   EuiSpacer,
   EuiCheckbox,
-  EuiText,
-  useGeneratedHtmlId,
 } from '@elastic/eui';
 
-export function EditServer() {
-
-  const [serverName, setServerName] = useState(undefined);
-  const [serverHost, setServerHost] = useState(undefined);
-  const [serverPort, setServerPort] = useState(22);
-  const [usePassword, setUsePassword] = useState(false);
-  const [serverUsername, setServerUsername] = useState('root');
-  const [serverPassword, setServerPassword] = useState(undefined);
-  const [serverKey, setServerKey] = useState(undefined);
-
+export function EditServer(props) {
+  const [serverName, setServerName] = useState(props.name);
+  const [serverHost, setServerHost] = useState(props.host);
+  const [serverPort, setServerPort] = useState(props.port);
+  const [usePassword, setUsePassword] = useState(props.usePassword);
+  const [serverUsername, setServerUsername] = useState(
+    props.username ? props.username : 'root');
+  const [serverPassword, setServerPassword] = useState(props.password);
+  const [serverKey, setServerKey] = useState(props.privateKey);
 
   return (
     <EuiForm>
@@ -93,7 +77,21 @@ export function EditServer() {
         }
       </EuiFormRow>
 
-      <EuiButton>
+      <EuiButton onClick={async () => {
+        console.log("...")
+        await window.config.set({
+          uuid: props.uuid,
+          name: serverName,
+          host: serverHost,
+          port: serverPort,
+          password: serverPassword,
+          username: serverUsername,
+          privateKey: serverKey,
+          usePassword: usePassword,
+        });
+        await props.setIsPopOverOpen(false);
+        await props.updateCardList();
+      }}>
         保存
       </EuiButton>
     </EuiForm>

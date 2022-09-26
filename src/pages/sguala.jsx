@@ -1,7 +1,6 @@
 import React, { ReactElement } from 'react';
-import '@elastic/eui/dist/eui_theme_light.css';
-import { Nav } from './nav'
-import { ServerCard, SrvCardProps } from './srvcard';
+import { Nav } from './Nav'
+import { ServerCardList } from './ServerCardList';
 
 import {
   EuiProvider,
@@ -9,31 +8,32 @@ import {
   EuiPageSection,
   EuiPageBody,
 } from '@elastic/eui';
+import '@elastic/eui/dist/eui_theme_light.css';
 
-import { AddSrvProps, AddServerPage } from './addsrv';
+
+import { AddServerPage } from './AddServerPage';
 
 // main content of app.
 export class Sguala extends React.Component {
 
+  setserverCardListUpdate(fn) {
+    this.setState({ updateCardListFN: fn })
+  }
+
   render() {
-
-    const card = new SrvCardProps();
-    const addSrvProps = new AddSrvProps();
-
     return (
-      <EuiProvider colorMode="light">
-        <EuiPage>
-          <EuiPageBody paddingSize="none" panelled={false}>
-            <EuiPageSection paddingSize="none">
-              <Nav navIsOpen={false} navIsDocked={false} />
-              <AddServerPage />
-            </EuiPageSection>
-            <EuiPageSection>sections...</EuiPageSection>
-
-            <ServerCard />
-          </EuiPageBody>
-        </EuiPage>
-      </EuiProvider>
+      <EuiPage>
+        <EuiPageBody paddingSize="none" panelled={false}>
+          <div>
+            <Nav navIsOpen={false} navIsDocked={false} />
+            <AddServerPage updateCardList={async () => await this.state.updateCardListFN()} />
+          </div>
+          <div>
+            <ServerCardList updateCardList={async () => await this.state.updateCardListFN()}
+              setUpdateCB={(fn) => this.setserverCardListUpdate(fn)} />
+          </div>
+        </EuiPageBody>
+      </EuiPage>
     );
   }
 }

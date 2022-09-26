@@ -3,21 +3,25 @@ import { loadConfig, Config } from './conf';
 import { ServerLogins } from './serverlogins';
 
 export class SshFetchStats {
-
-    srvStats: LinuxSession[] = [];
+    srvStats = new Map<string, LinuxSession>();
 
     constructor() {
         console.log('..')
-    }
-    async start() {
-        const config = await loadConfig();
-        await this.timerFn();
     }
 
     exeEnv() {
         return {
             'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin'
         };
+    }
+
+    getStat(uuid: string): LinuxStat {
+        // console.log('get stat...');
+        const s = this.srvStats.get(uuid);
+        if (!s) {
+            return undefined;
+        }
+        return s.stat;
     }
 
     calculateCpuLoad(s: LinuxSession, data: string) {
@@ -178,9 +182,9 @@ export class SshFetchStats {
                 if (!dstat) {
                     continue;
                 }
-                console.log('>>>>> disk ', dstat);
+                // console.log('>>>>> disk ', dstat);
                 if (dstat.name == 'tmpfs' ||
-                    dstat.name == 'udef' ||
+                    dstat.name == 'udev' ||
                     dstat.name == 'none' ||
                     dstat.name == 'overlay') {
                     // skip
@@ -197,12 +201,6 @@ export class SshFetchStats {
         this.getCPULoad(s);
         this.getMemInfo(s);
         this.getDiskStat(s);
-    }
-
-    registerServer(arg: ServerLogins) {
-        const s = new LinuxSession();
-        s.serverLogins = arg;
-        this.srvStats.push(s);
     }
 
     sshConnect(s: LinuxSession) {
@@ -234,73 +232,53 @@ export class SshFetchStats {
         s.conn.connect({ ...connArgs });
     }
 
-    addMissing(config: Config) {
-        // add missing
-        for (let i = 0; i < config.servers.length; i++) {
-            let found = false;
-            const sc = config.servers[i];
-            for (let j = 0; j < this.srvStats.length; j++) {
-                const ss = this.srvStats[i];
-                if (ss.serverLogins.uuid == sc.uuid) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                this.registerServer(sc);
-            }
+    closeServer(uuid: string) {
+        const s = this.srvStats.get(uuid);
+        if (!s) {
+            return;
         }
-    }
-    delNotExists(config: Config) {
-        for (let i = this.srvStats.length - 1; i >= 0; i--) {
-            const ss = this.srvStats[i];
-            let found = false;
-            for (let j = 0; j < config.servers.length; j++) {
-                const sc = config.servers[j];
-                if (ss.serverLogins.uuid == sc.uuid) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                this.srvStats.splice(i, 1);
-            }
-        }
+        console.log("closeing", s.serverLogins.name);
+        s.conn && s.conn.end();
+        s.closing = true;
+        this.srvStats.delete(uuid);
     }
 
-    async timerFn() {
-        const config = await loadConfig();
-        this.addMissing(config);
-        this.delNotExists(config);
+    registerServer(ss: ServerLogins) {
+        console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
+        let s = this.srvStats.get(ss.uuid);
+        if (!s) {
+            s = new LinuxSession();
+            s.serverLogins = ss;
+            this.srvStats.set(ss.uuid, s);
+        }
+        this.sshConnect(s);
 
-        try {
-            let i = this.srvStats.length;
-            while (i--) {
-                const s = this.srvStats[i];
-                console.log("s.stat.onlin=", s.stat.online)
-                if (s.closing) {
-                    s.conn && s.conn.end();
-                    if (s.conn) {
-                        s.conn.end;
-                        continue;
-                    }
-                } else if (s.stat.online == OnlineStatus.INIT) {
-                    this.sshConnect(s);
-                } else if (s.stat.online == OnlineStatus.ONLINE) {
-                    this.getStats(s);
-                }
+        const fn = async (s: LinuxSession) => {
+            if (s.closing) {
+                console.log('server', s.serverLogins.name, 'close');
+                return;
             }
 
-        } catch (e: any) {
-            console.log('exception:', e);
-        }
+            if (s.stat.online == OnlineStatus.INIT) {
+                this.sshConnect(s);
+            }
 
-        setTimeout(() => {
-            (async () => {
-                await this.timerFn();
-            })();
-        }, config.fetchStatInterval);
+            if (s.stat.online == OnlineStatus.ONLINE) {
+                this.getStats(s);
+            }
+            let timeoutMiseconds = 10 * 1000;
+            if (!s.stat.cpuload) {
+                timeoutMiseconds = 1000;
+            }
 
+            setTimeout(() => {
+                (async () => {
+                    await fn(s);
+                })();
+            }, timeoutMiseconds);
+        };
+
+        fn(s);
     }
 }
 
