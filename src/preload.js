@@ -8,6 +8,10 @@ contextBridge.exposeInMainWorld('config', {
     getAll: async () => await ipcRenderer.invoke('getAllConfig'),
     set: async (arg) => await ipcRenderer.invoke('putServerConfig', arg),
     del: async (uuid) => await ipcRenderer.invoke('delServerConfig', uuid),
+
+    getAlert: async (uuid) => await ipcRenderer.invoke('getAlertConfig', uuid),
+    delAlert: async (uuid) => await ipcRenderer.invoke('delAlertConfig', uuid),
+    pubAlert: async (arg) => await ipcRenderer.invoke('putAlertConfig', arg),
 });
 
 contextBridge.exposeInMainWorld('stat', {

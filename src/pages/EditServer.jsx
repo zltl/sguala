@@ -38,7 +38,7 @@ export function EditServer(props) {
   };
 
   return (
-    <EuiForm component="form">
+    <EuiForm component="form" >
       <EuiFormRow label="名称">
         <EuiFieldText
           placeholder="起个响亮的名字"

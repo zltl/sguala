@@ -1,5 +1,6 @@
 import { Client } from 'ssh2';
 import { ServerLogins } from './serverlogins';
+import { checkAlert } from './alertLogic';
 
 export class SshFetchStats {
     srvStats = new Map<string, LinuxSession>();
@@ -20,6 +21,10 @@ export class SshFetchStats {
         if (!s) {
             return undefined;
         }
+        setTimeout(async () => {
+            await checkAlert(s.serverLogins, s.stat, s.stat.online == OnlineStatus.ONLINE);
+        }, 10);
+
         return s.stat;
     }
 
@@ -206,18 +211,18 @@ export class SshFetchStats {
         console.log('connecting', s.serverLogins.host, s.serverLogins.port);
         s.conn = new Client();
         s.stat.online = OnlineStatus.CONNECTING;
-        s.conn.on('ready', () => {
+        s.conn.on('ready', async () => {
             s.stat.online = OnlineStatus.ONLINE;
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
             this.getStats(s);
         });
 
-        s.conn.on('close', () => {
+        s.conn.on('close', async () => {
             s.stat.online = OnlineStatus.INIT;
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'close')
         });
 
-        s.conn.on('timeout', () => {
+        s.conn.on('timeout', async () => {
             s.stat.online = OnlineStatus.INIT;
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
         });

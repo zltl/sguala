@@ -7,11 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 
 
 import path from 'path';
+import { AlertConfig } from './alertConfig';
 
 export class Config {
     version: string = VersionStr()
     fetchStatInterval: number = 10 * 1000
     servers: ServerLogins[] = []
+    alerts: AlertConfig[] = []
 }
 
 function getConfigFilePath(): string {
@@ -68,7 +70,6 @@ export async function delServerConfig(uuid: string) {
     await storeConfig(config);
 }
 
-
 export async function getServerConfig(uuid: string): Promise<ServerLogins> {
     const config = await loadConfig();
     for (let i = 0; i < config.servers.length; ++i) {
@@ -77,5 +78,45 @@ export async function getServerConfig(uuid: string): Promise<ServerLogins> {
         }
     }
     return undefined;
+}
+
+export async function getAlertConfig(uuid: string): Promise<AlertConfig> {
+    const config = await loadConfig();
+    for (let i = 0; i < config.alerts.length; ++i) {
+        if (config.alerts[i].uuid == uuid) {
+            return config.alerts[i];
+        }
+    }
+    if (config.alerts.length > 0) {
+        return config.alerts[config.alerts.length - 1];
+    }
+    return undefined;
+}
+
+export async function delAlertConfig(uuid: string) {
+    const config = await loadConfig();
+    for (let i = 0; i < config.alerts.length; ++i) {
+        if (config.alerts[i].uuid == uuid) {
+            config.servers.splice(i, 1);
+            break;
+        }
+    }
+    await storeConfig(config);
+}
+
+export async function putAlertConfig(arg: AlertConfig) {
+    const config = await loadConfig();
+    let found = false;
+    for (let i = 0; i < config.servers.length; ++i) {
+        if (config.alerts[i].uuid == arg.uuid) {
+            config.alerts[i] = arg;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        config.alerts.push(arg);
+    }
+    await storeConfig(config);
 }
 

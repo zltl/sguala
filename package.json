@@ -18,7 +18,7 @@
     "ssh"
   ],
   "author": "liaot",
-  "license": "GPL",
+  "license": "GPL-3.0-or-later",
   "config": {
     "forge": {
       "packagerConfig": {},
@@ -97,12 +97,14 @@
     "@elastic/eui": "^66.0.0",
     "@emotion/cache": "^11.10.3",
     "@emotion/react": "^11.10.4",
+    "@types/nodemailer": "^6.4.6",
     "@types/ssh2": "^1.11.5",
     "@types/uuid": "^8.3.4",
     "electron-rebuild": "^3.2.9",
     "electron-squirrel-startup": "^1.0.0",
     "mocha": "^10.0.0",
     "moment": "^2.29.4",
+    "nodemailer": "^6.7.8",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -6,11 +6,13 @@ import {
   EuiButtonIcon,
   EuiPopoverTitle,
   EuiPopover,
+  EuiToolTip,
   EuiFlexGroup,
   EuiFlexItem,
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
+import { EditAlert } from './EditAlert';
 
 export class SrvCardProps {
   title = "服务器名称"
@@ -29,6 +31,7 @@ export class ServerCard extends React.Component {
         disks: [],
       },
       login: props.login,
+      isAlertEditOpen: false,
       isEditOpen: false,
     };
   }
@@ -57,6 +60,9 @@ export class ServerCard extends React.Component {
 
   setIsEditOpen(v) {
     this.setState({ isEditOpen: v });
+  }
+  setIsAlertEditOpen(v) {
+    this.setState({ isAlertEditOpen: v });
   }
 
   selectColor(v) {
@@ -94,13 +100,22 @@ export class ServerCard extends React.Component {
         description={
           <>
             <EuiPopover
-              style={{ marginRight: 30 }}
+              panelStyle={{ minWidth: 400 }}
               button={
-                <EuiButtonIcon
-                  iconType="documentEdit"
-                  aria-label='edit server login info'
-                  onClick={() => this.setIsEditOpen(!this.state.isEditOpen)}
-                />
+                <EuiToolTip
+                  position="top"
+                  content={
+                    <p>
+                      编辑服务器登录信息
+                    </p>
+                  }
+                >
+                  <EuiButtonIcon
+                    iconType="documentEdit"
+                    aria-label='edit server login info'
+                    onClick={() => this.setIsEditOpen(!this.state.isEditOpen)}
+                  />
+                </EuiToolTip>
               }
               isOpen={this.state.isEditOpen}
               closePopover={() => this.setIsEditOpen(false)}
@@ -110,15 +125,54 @@ export class ServerCard extends React.Component {
                 closePopover={() => this.setIsEditOpen(false)}
                 updateCardList={async () => await this.props.updateCardList()} />
             </EuiPopover>
-            <EuiButtonIcon
-              iconType="trash"
-              area-label='delete server'
-              onClick={async () => {
-                console.log('delete', this.state.login.uuid);
-                await window.config.del(this.state.login.uuid);
-                await this.props.updateCardList();
-              }}
-            />
+
+            <EuiPopover
+              style={{ marginRight: 30 }}
+              panelStyle={{ minWidth: 400 }}
+              button={
+                <EuiToolTip
+                  position="top"
+                  content={
+                    <p>
+                      编辑告警
+                    </p>
+                  }
+                >
+                  <EuiButtonIcon
+                    iconType="alert"
+                    aria-label='edit server alert info'
+                    onClick={() => this.setIsAlertEditOpen(!this.state.isAlertEditOpen)}
+                  />
+                </EuiToolTip>
+              }
+              isOpen={this.state.isAlertEditOpen}
+              closePopover={() => this.setIsAlertEditOpen(false)}
+            >
+              <EuiPopoverTitle>编辑告警</EuiPopoverTitle>
+              <EditAlert
+                uuid={this.state.login.uuid}
+                closePopover={() => this.setIsAlertEditOpen(false)} />
+            </EuiPopover>
+
+            <EuiToolTip
+              position="top"
+              content={
+                <p>
+                  删除服务器
+                </p>
+              }
+            >
+              <EuiButtonIcon
+                iconType="trash"
+                area-label='delete server'
+                onClick={async () => {
+                  console.log('delete', this.state.login.uuid);
+                  await window.config.del(this.state.login.uuid);
+                  await this.props.updateCardList();
+                }}
+              />
+            </EuiToolTip>
+
           </>
         }
       >

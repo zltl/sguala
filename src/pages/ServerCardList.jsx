@@ -9,6 +9,7 @@ export class ServerCardList extends React.Component {
         super(props);
         this.state = {
             servers: [],
+            alerts: [],
         };
         this.loadConfig = this.loadConfig.bind(this);
         if (props.setUpdateCB) {
