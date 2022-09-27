@@ -57,6 +57,18 @@ export async function putServerConfig(arg: ServerLogins) {
     await storeConfig(config);
 }
 
+export async function delServerConfig(uuid: string) {
+    const config = await loadConfig();
+    for (let i = 0; i < config.servers.length; ++i) {
+        if (config.servers[i].uuid == uuid) {
+            config.servers.splice(i, 1);
+            break;
+        }
+    }
+    await storeConfig(config);
+}
+
+
 export async function getServerConfig(uuid: string): Promise<ServerLogins> {
     const config = await loadConfig();
     for (let i = 0; i < config.servers.length; ++i) {

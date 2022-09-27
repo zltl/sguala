@@ -6,7 +6,6 @@ import { ServerCard } from './ServerCard';
 export class ServerCardList extends React.Component {
 
     constructor(props) {
-        console.log('new ServerCardList()....................');
         super(props);
         this.state = {
             servers: [],
@@ -14,7 +13,6 @@ export class ServerCardList extends React.Component {
         this.loadConfig = this.loadConfig.bind(this);
         if (props.setUpdateCB) {
             props.setUpdateCB(async () => {
-                console.log("CB LOAD_CONFIG_ALL");
                 await this.loadConfig();
             });
         }
@@ -23,36 +21,38 @@ export class ServerCardList extends React.Component {
 
     async loadConfig() {
         const configs = await window.config.getAll();
-        console.log("loadConfig -------------", this.name, configs);
-        this.setState({ servers: configs.servers });
+        this.setState((st) => {
+            return {
+                servers: configs.servers,
+            };
+        });
     }
 
 
     async componentDidMount() {
         await this.loadConfig();
-        /*
-        const timerfn = async () => {
-            await this.loadConfig();
-            setTimeout(() => { timerfn() }, 10 * 1000);
-        };
-        await timerfn();
-        */
     }
 
     render() {
         const srvs = this.state.servers.map((item) => {
             return (
-                <EuiFlexItem key={item.uuid}>
+                <EuiFlexItem key={JSON.stringify(item)}>
                     <ServerCard login={item}
-                        updateCardList={() => this.props.updateCardList()} />
+                        updateCardList={async () => {
+                            await this.loadConfig();
+                        }} />
                 </EuiFlexItem>
             );
         });
 
         return (
-            <EuiFlexGroup>
-                {srvs}
-            </EuiFlexGroup>
+            <div style={{
+                padding: 20,
+            }}>
+                <EuiFlexGroup gutterSize="s">
+                    {srvs}
+                </EuiFlexGroup>
+            </div >
         );
     }
 

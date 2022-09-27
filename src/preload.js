@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('myAPI', {
 contextBridge.exposeInMainWorld('config', {
     getAll: async () => await ipcRenderer.invoke('getAllConfig'),
     set: async (arg) => await ipcRenderer.invoke('putServerConfig', arg),
+    del: async (uuid) => await ipcRenderer.invoke('delServerConfig', uuid),
 });
 
 contextBridge.exposeInMainWorld('stat', {

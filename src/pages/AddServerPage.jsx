@@ -20,18 +20,18 @@ export function AddServerPage(props) {
     setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
   const closePopover = () => setIsPopoverOpen(false);
 
-
   return (
     <EuiPopover button={
       <EuiButtonIcon iconType="plusInCircleFilled"
         aria-label='open add server form'
         size="m"
         onClick={onButtonClick} />}
+      panelStyle={{ minWidth: 400 }}
       isOpen={isPopoverOpen}
       closePopover={closePopover} >
       <EuiPopoverTitle>添加服务器</EuiPopoverTitle>
       <EditServer updateCardList={async () => await props.updateCardList()}
-        setIsPopOverOpen={(v) => setIsPopoverOpen(v)} />
+        closePopover={() => setIsPopoverOpen(false)} />
     </EuiPopover>
   );
 }

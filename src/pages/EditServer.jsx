@@ -14,15 +14,31 @@ import {
 export function EditServer(props) {
   const [serverName, setServerName] = useState(props.name);
   const [serverHost, setServerHost] = useState(props.host);
-  const [serverPort, setServerPort] = useState(props.port);
+  const [serverPort, setServerPort] = useState(props.port ? props.port : 22);
   const [usePassword, setUsePassword] = useState(props.usePassword);
   const [serverUsername, setServerUsername] = useState(
     props.username ? props.username : 'root');
   const [serverPassword, setServerPassword] = useState(props.password);
   const [serverKey, setServerKey] = useState(props.privateKey);
 
+  const submitFN = async () => {
+    props.closePopover();
+    console.log("... CLOSE POP UP")
+    await window.config.set({
+      uuid: props.uuid,
+      name: serverName,
+      host: serverHost,
+      port: serverPort,
+      password: serverPassword,
+      username: serverUsername,
+      privateKey: serverKey,
+      usePassword: usePassword,
+    });
+    await props.updateCardList();
+  };
+
   return (
-    <EuiForm>
+    <EuiForm component="form">
       <EuiFormRow label="名称">
         <EuiFieldText
           placeholder="起个响亮的名字"
@@ -77,21 +93,12 @@ export function EditServer(props) {
         }
       </EuiFormRow>
 
-      <EuiButton onClick={async () => {
-        console.log("...")
-        await window.config.set({
-          uuid: props.uuid,
-          name: serverName,
-          host: serverHost,
-          port: serverPort,
-          password: serverPassword,
-          username: serverUsername,
-          privateKey: serverKey,
-          usePassword: usePassword,
-        });
-        await props.setIsPopOverOpen(false);
-        await props.updateCardList();
-      }}>
+      <EuiButton
+        type='submit'
+        onClick={async (e) => {
+          e.preventDefault();
+          await submitFN()
+        }}>
         保存
       </EuiButton>
     </EuiForm>

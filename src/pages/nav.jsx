@@ -7,6 +7,8 @@ import {
   EuiButton,
   EuiText,
   EuiCode,
+  EuiListGroup,
+  EuiListGroupItem,
 } from '@elastic/eui';
 
 export function Nav() {
@@ -31,41 +33,18 @@ export function Nav() {
         onClose={() => setNavIsOpen(false)}
       >
 
-        <div style={{ padding: 16 }}>
-          <EuiTitle>
-            <h2>I am some nav</h2>
-          </EuiTitle>
-          <EuiSpacer />
-          <EuiText size="s" color="subdued">
-            <p>
-              The docked status is being stored in{' '}
-              <EuiCode>localStorage</EuiCode>.
-            </p>
-          </EuiText>
-          <EuiSpacer />
-          <EuiButton
-            onClick={() => {
-              setNavIsDocked(!navIsDocked);
-              localStorage.setItem(
-                'euiCollapsibleNavExample--isDocked',
-                JSON.stringify(!navIsDocked)
-              );
-            }}
-          >
-            Docked: {navIsDocked ? 'on' : 'off'}
-          </EuiButton>
-        </div>
-      </EuiCollapsibleNav>
+        <EuiSpacer />
+        <EuiListGroup flush={true} bordered={false}>
+          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="First item" />
 
-      {navIsDocked && (
-        <EuiText size="s" color="subdued">
-          <p>
-            The <EuiCode>button</EuiCode> gets hidden by default when the nav is
-            docked unless you set{' '}
-            <EuiCode language="js">showButtonIfDocked = true</EuiCode>.
-          </p>
-        </EuiText>
-      )}
+          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Second item" />
+
+          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Third item" isActive />
+
+          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Fourth item" />
+        </EuiListGroup>
+
+      </EuiCollapsibleNav>
     </>
 
   );

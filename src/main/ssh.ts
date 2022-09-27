@@ -1,5 +1,4 @@
 import { Client } from 'ssh2';
-import { loadConfig, Config } from './conf';
 import { ServerLogins } from './serverlogins';
 
 export class SshFetchStats {
