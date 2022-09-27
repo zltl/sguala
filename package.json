@@ -18,7 +18,7 @@
     "ssh"
   ],
   "author": "liaot",
-  "license": "MIT",
+  "license": "GPL",
   "config": {
     "forge": {
       "packagerConfig": {},
