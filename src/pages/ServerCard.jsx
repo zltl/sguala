@@ -7,8 +7,6 @@ import {
   EuiPopoverTitle,
   EuiPopover,
   EuiToolTip,
-  EuiFlexGroup,
-  EuiFlexItem,
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';

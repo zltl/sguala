@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-import Mail from "nodemailer/lib/mailer";
 import { AlertConfig } from "./alertConfig";
 import { ServerLogins } from "./serverlogins";
 import { LinuxStat } from "./ssh";
@@ -22,6 +21,8 @@ const toName = [
     '老板',
     '变态',
     '蠕动的蛆',
+    '靓仔',
+    '老表'
 ];
 
 const hostDownSubject = [
@@ -48,14 +49,13 @@ const diskSubject = [
 ];
 
 // [0, max-1]
-function rand(max: number) {
+function rand(max: number): number {
     return Math.floor(Math.random() * (max - 1));
 }
 
 function randStr(ss: string[]): string {
     return ss[rand(ss.length)];
 }
-
 
 export async function SendMail(
     conf: AlertConfig,
@@ -65,6 +65,9 @@ export async function SendMail(
     mem: boolean,
     disk: boolean,
     hostDown: boolean) {
+
+    // console.log('SendMail: conf:', conf, 'login', login, 'stat', stat, 'cpu', cpu, 'mem', mem, 'disk', disk, 'down', hostDown);
+
     const transporter = nodemailer.createTransport({
         host: conf.fromHost,
         port: conf.fromPort,
@@ -75,24 +78,24 @@ export async function SendMail(
         },
     });
 
-    let subject = randStr(EmojiSubject) + ' ' + login.name;
+    let subject = randStr(EmojiSubject);
     let first = false;
     if (cpu) {
         first = true;
-        subject = subject + ' ' + randStr(cpuSubject);
+        subject += ' ' + randStr(cpuSubject);
     }
     if (mem) {
-        subject = subject + first ? ' ' : '，' + randStr(memSubject);
+        subject += (first ? ' ' : '，') + randStr(memSubject);
         first = true;
     }
     if (disk) {
-        subject = subject + first ? ' ' : '，' + randStr(diskSubject);
+        subject += (first ? ' ' : '，') + randStr(diskSubject);
     }
     if (hostDown) {
-        subject = subject + first ? ' ' : '，' + randStr(hostDownSubject);
+        subject += (first ? ' ' : '，') + randStr(hostDownSubject);
     }
 
-    subject = subject + '，' + randStr(toName) + '！';
+    subject += '，' + randStr(toName) + '！ -- ' + login.name;
 
     let text =
         `服务器名称: ${login.name}
@@ -107,12 +110,17 @@ CPU 占用率: ${stat.cpuload}
 
     text += '\n' + new Date().toISOString() + '\n';
 
-    const info = await transporter.sendMail({
-        from: '"小凶许" ' + conf.fromEmail, // sender address
-        to: conf.toEmail, // list of receivers
-        subject: subject, // Subject line
-        text: text, // plain text body
-    });
-
-    console.log("Message sent: %s", info.messageId);
+    try {
+        const info = await transporter.sendMail({
+            from: '"小凶许" ' + conf.fromEmail, // sender address
+            to: conf.toEmail, // list of receivers
+            subject: subject, // Subject line
+            text: text, // plain text body
+        });
+        console.log("Message sent: %s", info.messageId);
+    } catch (e) {
+        console.log('send mail from', conf.fromEmail, 'to', conf.toEmail, 'failed', e);
+    }
+    console.log("subject=", subject);
 }
+

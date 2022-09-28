@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('config', {
     getAlert: async (uuid) => await ipcRenderer.invoke('getAlertConfig', uuid),
     delAlert: async (uuid) => await ipcRenderer.invoke('delAlertConfig', uuid),
     pubAlert: async (arg) => await ipcRenderer.invoke('putAlertConfig', arg),
+
+    exportClipboard: async () => await ipcRenderer.invoke('exportClipboard'),
+    importClipboard: async () => await ipcRenderer.invoke('importClipboard'),
 });
 
 contextBridge.exposeInMainWorld('stat', {

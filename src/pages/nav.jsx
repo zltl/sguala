@@ -11,10 +11,18 @@ import {
   EuiListGroupItem,
 } from '@elastic/eui';
 
-export function Nav() {
+export function Nav(props) {
   const [navIsOpen, setNavIsOpen] = useState(false);
   const [navIsDocked, setNavIsDocked] = useState(false);
+  const [activeID, setActiveID] = useState('MAIN');
 
+
+  const setActivePage = (p) => {
+    if (props.setActivePage) {
+      props.setActivePage(p);
+    }
+    setActiveID(p);
+  };
 
   const myButton =
     <EuiButtonIcon
@@ -24,29 +32,31 @@ export function Nav() {
       size="m" />;
 
   return (
-    <>
-      <EuiCollapsibleNav
-        size={240}
-        button={myButton}
-        isOpen={navIsOpen}
-        isDocked={navIsDocked}
-        onClose={() => setNavIsOpen(false)}
-      >
+    <EuiCollapsibleNav
+      size={240}
+      button={myButton}
+      isOpen={navIsOpen}
+      isDocked={navIsDocked}
+      onClose={() => setNavIsOpen(false)}
+    >
 
-        <EuiSpacer />
-        <EuiListGroup flush={true} bordered={false}>
-          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="First item" />
+      <EuiSpacer />
+      <EuiListGroup flush={true} bordered={false}>
+        <EuiListGroupItem
+          onClick={() => {
+            setActivePage('MAIN');
+          }}
+          label="主界面"
+          isActive={activeID == 'MAIN'} />
+        <EuiListGroupItem
+          onClick={() => {
+            setActivePage('ABOUT')
+          }}
+          label="关于小凶许"
+          isActive={activeID == 'ABOUT'} />
+      </EuiListGroup>
 
-          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Second item" />
-
-          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Third item" isActive />
-
-          <EuiListGroupItem onClick={() => { console.log('TODO') }} label="Fourth item" />
-        </EuiListGroup>
-
-      </EuiCollapsibleNav>
-    </>
-
+    </EuiCollapsibleNav>
   );
 }
 

@@ -28,7 +28,31 @@ export async function loadConfig(): Promise<Config> {
         const content = await fs.readFile(configFilePath, 'utf8');
         console.log("loading config from ", configFilePath)
         const res = JSON.parse(content);
-        console.log("-----------------------", res)
+        if (!res.alerts) {
+            res.alerts = [{
+                // insert default rule if empty
+                "uuid": "0",
+                "isOpen": false,
+                "fromHost": "smtp.163.com",
+                "fromPort": 465,
+                "fromSecure": true,
+                "fromEmail": "sguala@163.com",
+                "fromPassword": "FAEUVUZKNWSYHCBI",
+                "toEmail": "",
+                "cpuCheck": false,
+                "memCheck": false,
+                "diskCheck": false,
+                "upCheck": false,
+                "cpuAlertValue": 90,
+                "memAlertValue": 90,
+                "diskAlertValue": 90,
+                "cpuAlertForValue": 5,
+                "memAlertForValue": 5,
+                "diskAlertForValue": 5,
+                "upAlertForValue": 5,
+                "mailInterval": 120
+            }];
+        }
         return res;
     } catch (e: any) {
         console.log("err: ", e);
@@ -107,7 +131,7 @@ export async function delAlertConfig(uuid: string) {
 export async function putAlertConfig(arg: AlertConfig) {
     const config = await loadConfig();
     let found = false;
-    for (let i = 0; i < config.servers.length; ++i) {
+    for (let i = 0; i < config.alerts.length; ++i) {
         if (config.alerts[i].uuid == arg.uuid) {
             config.alerts[i] = arg;
             found = true;

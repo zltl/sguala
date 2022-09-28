@@ -10,13 +10,18 @@ class AlertState {
     prevMemMatchTs = 0
     prevDiskMatchTs = 0
     prevUpMatchTs = 0
+    prevMail = 0
 }
 
 let alerts: Map<string, AlertState>;
 
 export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boolean) {
     if (!alerts) {
+        alerts = new Map<string, AlertState>();
         const config = await loadConfig();
+        if (config.alerts == undefined) {
+            config.alerts = [];
+        }
         config.alerts.map((conf) => {
             const state = new AlertState();
             state.conf = conf;
@@ -37,12 +42,16 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
                 state.prevUpMatchTs = curts;
             }
             if (curts - state.prevUpMatchTs >= conf.upAlertForValue * 60) {
-                console.log('alert host down ', login.name);
-                await SendMail(conf, login, stat, false, false, false, true);
+                if (curts - state.prevMail >= conf.mailInterval * 60) {
+                    await SendMail(conf, login, stat, false, false, false, true);
+                    state.prevMail = curts;
+                }
             }
+            state.prevUpMatchTs = curts;
         }
         return;
     }
+    state.prevUpMatchTs = 0;
 
     let alertCPU = false;
     let alertMem = false;
@@ -56,6 +65,7 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
             if (curts - state.prevCPUMatchTs >= conf.cpuAlertForValue * 60) {
                 alertCPU = true;
             }
+            state.prevCPUMatchTs = curts;
         } else {
             state.prevCPUMatchTs = 0;
         }
@@ -96,7 +106,10 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
 
     if (alertCPU || alertMem || alertDisk) {
         console.log('alert host ', login.name);
-        await SendMail(conf, login, stat, alertCPU, alertMem, alertDisk, alertDown);
+        if (curts - state.prevMail >= conf.mailInterval * 60) {
+            await SendMail(conf, login, stat, alertCPU, alertMem, alertDisk, alertDown);
+            state.prevMail = curts;
+        }
     }
 }
 

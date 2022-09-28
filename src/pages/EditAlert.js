@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    EuiTextArea,
     EuiFieldPassword,
     EuiButton,
     EuiFieldText,
@@ -11,40 +10,75 @@ import {
     EuiFieldNumber,
     EuiSpacer,
     EuiCheckbox,
-    EuiTitle,
     EuiFlexItem,
     EuiToolTip,
     EuiCode,
 } from '@elastic/eui';
 
-export async function EditAlert(props) {
+export function EditAlert(props) {
 
+    let alerts = {};
 
-    const alerts = await window.config.getAlert(props.uuid);
+    const [isOpen, setIsOpen] = useState(false);
+    const [fromHost, setFromHost] = useState(undefined); // smtp
+    const [fromPort, setFromPort] = useState(465);
+    const [fromSecure, setFromSecure] = useState(true);
+    const [fromEmail, setFromEmail] = useState(undefined);
+    const [fromPassword, setFromPassword] = useState(undefined);
+    const [toEmail, setToEmail] = useState(undefined);
 
-    const [isOpen, setIsOpen] = useState(alerts.isOpen);
-    const [fromHost, setFromHost] = useState(alerts.fromHost); // smtp
-    const [fromPort, setFromPort] = useState(alerts.fromPort);
-    const [fromSecure, setFromSecure] = useState(alerts.fromSecure);
-    const [fromEmail, setFromEmail] = useState(alerts.fromEmail);
-    const [fromPassword, setFromPassword] = useState(alerts.fromPassword);
-    const [toEmail, setToEmail] = useState(alerts.toEmail);
+    const [cpuCheck, setCpuCheck] = useState(false);
+    const [memCheck, setMemCheck] = useState(false);
+    const [diskCheck, setDiskCheck] = useState(false);
 
-    const [cpuCheck, setCpuCheck] = useState(alerts.cpuCheck);
-    const [memCheck, setMemCheck] = useState(alerts.memCheck);
-    const [diskCheck, setDiskCheck] = useState(alerts.diskCheck);
+    const [cpuAlertValue, setCpuAlertValue] = useState(90);
+    const [memAlertValue, setMemAlertValue] = useState(90);
+    const [diskAlertValue, setDiskAlertValue] = useState(90);
+    const [cpuAlertForValue, setCpuAlertForValue] = useState(5);
+    const [memAlertForValue, setMemAlertForValue] = useState(5);
+    const [diskAlertForValue, setDiskAlertForValue] = useState(5);
 
-    const [cpuAlertValue, setCpuAlertValue] = useState(alerts.cpuAlertValue ? alerts.cpuAlertValue : 90);
-    const [memAlertValue, setMemAlertValue] = useState(alerts.memAlertValue ? alerts.memAlertValue : 90);
-    const [diskAlertValue, setDiskAlertValue] = useState(alerts.diskAlertValue ? alerts.diskAlertValue : 90);
-    const [cpuAlertForValue, setCpuAlertForValue] = useState(alerts.cpuAlertForValue ? alerts.cpuAlertForValue : 5);
-    const [memAlertForValue, setMemAlertForValue] = useState(alerts.memAlertForValue ? alerts.memAlertForValue : 5);
-    const [diskAlertForValue, setDiskAlertForValue] = useState(alerts.diskAlertForValue ? alerts.diskAlertForValue : 5);
+    const [upCheck, setUpCheck] = useState(false);
+    const [upAlertForValue, setUpAlertForValue] = useState(5);
+    const [mailInterval, setMailInterval] = useState(120);
 
-    const [upCheck, setUpCheck] = useState(alerts.upCheck);
-    const [upAlertForValue, setUpAlertForValue] = useState(alerts.upAlertForValue);
-    const [mailInterval, setMailInterval] = useState(alert.mailInterval);
-    // TODO: form
+    let isSet = false;
+    useEffect(() => {
+        async function getAlerts() {
+            if (!isSet) {
+                isSet = true;
+                alerts = await window.config.getAlert(props.uuid);
+                console.log('getAlerts: ', alerts);
+                if (!alerts) {
+                    return;
+                }
+                setIsOpen(!!alerts.isOpen);
+                setFromHost(alerts.fromHost); // smtp
+                setFromPort(alerts.fromPort);
+                setFromSecure(alerts.fromSecure);
+                setFromEmail(alerts.fromEmail);
+                setFromPassword(alerts.fromPassword);
+                setToEmail(alerts.toEmail);
+
+                setCpuCheck(!!alerts.cpuCheck);
+                setMemCheck(!!alerts.memCheck);
+                setDiskCheck(!!alerts.diskCheck);
+
+                setCpuAlertValue(alerts.cpuAlertValue);
+                setMemAlertValue(alerts.memAlertValue);
+                setDiskAlertValue(alerts.diskAlertValue);
+                setCpuAlertForValue(alerts.cpuAlertForValue);
+                setMemAlertForValue(alerts.memAlertForValue);
+                setDiskAlertForValue(alerts.diskAlertForValue);
+
+                setUpCheck(!!alerts.upCheck);
+                setUpAlertForValue(alerts.upAlertForValue);
+
+                setMailInterval(alerts.mailInterval);
+            }
+        }
+        getAlerts();
+    }, [])
 
 
 
@@ -64,6 +98,7 @@ export async function EditAlert(props) {
             cpuCheck: cpuCheck,
             memCheck: memCheck,
             diskCheck: diskCheck,
+            upCheck: upCheck,
 
             cpuAlertValue: cpuAlertValue,
             memAlertValue: memAlertValue,
@@ -71,9 +106,10 @@ export async function EditAlert(props) {
             cpuAlertForValue: cpuAlertForValue,
             memAlertForValue: memAlertForValue,
             diskAlertForValue: diskAlertForValue,
+            upAlertForValue: upAlertForValue,
+            mailInterval: mailInterval,
 
         });
-        await props.updateCardList();
     };
 
     return (
@@ -93,6 +129,7 @@ export async function EditAlert(props) {
                     <EuiFlexGroup>
                         <EuiFlexItem>
                             <EuiFieldNumber
+                                style={{ width: '6em' }}
                                 prepend={'CPU 占用率超过'}
                                 value={cpuAlertValue}
                                 onChange={(e) => setCpuAlertValue(parseFloat(e.target.value))}
@@ -104,6 +141,7 @@ export async function EditAlert(props) {
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 prepend={'持续'}
+                                style={{ width: '4em' }}
                                 value={cpuAlertForValue}
                                 onChange={(e) => setCpuAlertForValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
@@ -125,6 +163,7 @@ export async function EditAlert(props) {
                     <EuiFlexGroup>
                         <EuiFlexItem>
                             <EuiFieldNumber
+                                style={{ width: '6em' }}
                                 prepend={'内存占用率超过'}
                                 value={memAlertValue}
                                 onChange={(e) => setMemAlertValue(parseFloat(e.target.value))}
@@ -135,6 +174,7 @@ export async function EditAlert(props) {
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiFieldNumber
+                                style={{ width: '4em' }}
                                 prepend={'持续'}
                                 value={memAlertForValue}
                                 onChange={(e) => setMemAlertForValue(parseFloat(e.target.value))}
@@ -157,6 +197,7 @@ export async function EditAlert(props) {
                     <EuiFlexGroup>
                         <EuiFlexItem>
                             <EuiFieldNumber
+                                style={{ width: '6em' }}
                                 prepend={'磁盘占用率超过'}
                                 value={diskAlertValue}
                                 onChange={(e) => setDiskAlertValue(parseFloat(e.target.value))}
@@ -167,6 +208,7 @@ export async function EditAlert(props) {
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiFieldNumber
+                                style={{ width: '4em' }}
                                 prepend={'持续'}
                                 value={diskAlertForValue}
                                 onChange={(e) => setDiskAlertForValue(parseFloat(e.target.value))}
@@ -180,6 +222,21 @@ export async function EditAlert(props) {
                 }
                 checked={diskCheck}
                 onChange={(e) => setDiskCheck(e.target.checked)}
+            />
+            <EuiSpacer />
+            <EuiCheckbox
+                id='upCheck'
+                label={
+                    <EuiFieldNumber
+                        prepend={'服务器连不上持续'}
+                        value={upAlertForValue}
+                        onChange={(e) => setUpAlertForValue(parseFloat(e.target.value))}
+                        aria-label="select alert value"
+                        append={'分钟'}
+                    />
+                }
+                checked={upCheck}
+                onChange={(e) => setUpCheck(e.target.checked)}
             />
 
             <EuiSpacer />
@@ -233,7 +290,18 @@ export async function EditAlert(props) {
                 />
             </EuiFormRow>
 
+            <EuiSpacer />
+            <EuiFieldNumber
+                prepend={'这个服务器的告警邮件'}
+                value={mailInterval}
+                onChange={(e) => setMailInterval(parseFloat(e.target.value))}
+                aria-label="select alert value"
+                append={
+                    '分钟内不用再发'
+                }
+            />
 
+            <EuiSpacer />
             <EuiButton
                 type='submit'
                 onClick={async (e) => {
