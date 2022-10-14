@@ -1,12 +1,48 @@
-import { Client } from 'ssh2';
+import { Client, ClientChannel } from 'ssh2';
 import { ServerLogins } from './serverlogins';
 import { checkAlert } from './alertLogic';
+import { ipcMain } from 'electron';
 
 export class SshFetchStats {
     srvStats = new Map<string, LinuxSession>();
 
     constructor() {
         console.log('..')
+    }
+
+    startShell(win: any, login: ServerLogins) {
+        const s = new ShellSession();
+        s.login = login;
+        s.conn = new Client();
+        const chanKey = 'SHELL_CHANNEL_' + login.uuid;
+        s.conn.on('ready', () => {
+            console.log('Shell :: ready ', login.uuid);
+            s.conn.shell((err, stream) => {
+
+                ipcMain.on(chanKey + "_CLOSE", () => {
+                    s.conn.end();
+                });
+                ipcMain.on(chanKey, (e, data) => {
+                    stream.write(data, 'utf-8');
+                });
+
+                if (err) {
+                    console.log('shell:', err);
+                    s.conn.end();
+                    return;
+                }
+                s.stream = stream;
+                stream.on('close', () => {
+                    console.log('shell', login.uuid, 'close');
+                    s.conn.end();
+                });
+                stream.on('data', (data: any) => {
+                    win.webContents.send(chanKey, data);
+                });
+            }).connect({
+                ...login
+            });
+        });
     }
 
     exeEnv() {
@@ -325,4 +361,9 @@ class PrevData {
     steal: number
 }
 
+class ShellSession {
+    login: ServerLogins
+    conn: Client
+    stream: ClientChannel
+}
 

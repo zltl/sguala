@@ -59,6 +59,14 @@
                   "preload": {
                     "js": "./src/preload.js"
                   }
+                },
+                {
+                  "html": "./src/pages/shell.html",
+                  "js": "./src/pages/shell.js",
+                  "name": "shell_window",
+                  "preload": {
+                    "js": "./src/preload.js"
+                  }
                 }
               ]
             }
@@ -106,9 +114,13 @@
     "moment": "^2.29.4",
     "nodemailer": "^6.7.8",
     "prop-types": "^15.8.1",
+    "querystring": "^0.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ssh2": "^1.11.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "xterm": "^5.0.0",
+    "xterm-addon-fit": "^0.6.0",
+    "xterm-for-react": "^1.0.4"
   }
 }
