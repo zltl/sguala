@@ -15,6 +15,7 @@ const EmojiSubject = [
 ];
 
 const toName = [
+    '崽种',
     '废物',
     '白痴',
     '断脊野狗',

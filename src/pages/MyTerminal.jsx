@@ -1,44 +1,68 @@
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { Resizable } from "re-resizable";
+import ResizeObserver from "react-resize-observer";
 
 import { parse as queryParse } from 'querystring';
 
 import React from 'react';
 
-export const MyTerminal = (props) => {
-    const xtermRef = React.useRef(null);
-    let openSsh = false;
+import "./xterm.css";
 
-    console.log(global.location.search);
-    let query = queryParse(global.location.search);
-    console.log(query);
-    const uuid = query['?uuid'];
-    let term = undefined;
-    let fitAddon = undefined;
 
-    React.useEffect(async () => {
-        const login = await window.config.get(uuid);
-        document.title = login.name;
-        console.log("------------log=", login);
-        // You can call any method in XTerm.js by using 'xterm xtermRef.current.terminal.[What you want to call]
-        // xtermRef.current.terminal.writeln("Hello, World!");
 
-        if (!term) {
-            term = new Terminal();
-            fitAddon = new FitAddon();
-            term.loadAddon(fitAddon);
-            term.open(document.getElementById('terminal-container'));
-            // Make the terminal's size and geometry fit the size of #terminal-container
-        }
-        fitAddon.fit();
+// let term;
 
-        if (!openSsh) {
-            // ipcRenderer.on('your-event', (event, customData) => cb(customData));
-        }
-    }, [])
+export class MyTerminal extends React.Component {
+    constructor(props) {
+        super(props);
 
-    return (
-        // Create a new terminal and set it's ref.
-        <div id='terminal-container' style={{ width: '100vw', height: '100vh' }}></div>
-    )
+        this.state = {};
+
+        this.term = null;
+        this.fitAddon = new FitAddon();
+    }
+
+    componentDidMount() {
+        console.log(global.location.search);
+        let query = queryParse(global.location.search);
+        console.log(query);
+        const uuid = query['?uuid'];
+        const login = window.config.get(uuid).then((login) => {
+            document.title = login.name;
+            console.log("------------log=", login);
+        });
+        const chanKey = 'SHELL_CHANNEL_' + uuid;
+
+        window.ipc.on(chanKey, (e, data)=> {
+            this.term.write(data);
+        });
+
+        this.term = new Terminal();
+        this.term.loadAddon(this.fitAddon);
+        this.term.open(this.XtermDiv);
+        this.term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ')
+        this.fitAddon.fit();
+        this.term.onData((data) => {
+            window.ipc.send(chanKey, data);
+            console.log("this is data:", data);
+        })
+    }
+
+    render() {
+        return (<>
+            <Resizable>
+                <div id="xterm" style={{ width: '100vw', height: '100vh' }} ref={c => this.XtermDiv = c} />
+            </Resizable>
+            <ResizeObserver
+                onResize={rect => {
+                    this.fitAddon.fit();
+                    console.log("Resized. New bounds:", rect.width, "x", rect.height);
+                }}
+                onPosition={rect => {
+                    console.log("Moved. New position:", rect.left, "x", rect.top);
+                }}
+            />
+        </>);
+    }
 }

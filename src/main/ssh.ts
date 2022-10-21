@@ -10,39 +10,37 @@ export class SshFetchStats {
         console.log('..')
     }
 
-    startShell(win: any, login: ServerLogins) {
+    startShell(win: any, login: ServerLogins, cnt: number): ShellSession {
+        console.log('start shell...... ', login.name);
         const s = new ShellSession();
         s.login = login;
+        console.log(".......................")
         s.conn = new Client();
         const chanKey = 'SHELL_CHANNEL_' + login.uuid;
-        s.conn.on('ready', () => {
-            console.log('Shell :: ready ', login.uuid);
-            s.conn.shell((err, stream) => {
 
-                ipcMain.on(chanKey + "_CLOSE", () => {
-                    s.conn.end();
-                });
-                ipcMain.on(chanKey, (e, data) => {
-                    stream.write(data, 'utf-8');
-                });
-
-                if (err) {
-                    console.log('shell:', err);
-                    s.conn.end();
-                    return;
-                }
-                s.stream = stream;
-                stream.on('close', () => {
-                    console.log('shell', login.uuid, 'close');
-                    s.conn.end();
-                });
-                stream.on('data', (data: any) => {
-                    win.webContents.send(chanKey, data);
-                });
-            }).connect({
-                ...login
-            });
+        s.conn.on('ready', async () => {
+            console.log('ssh', login.host, login.port, 'ready');
+            // TODO: shell
         });
+
+        s.conn.on('close', async () => {
+            console.log('ssh', login.host, login.port, 'close')
+        });
+
+        s.conn.on('timeout', async () => {
+            console.log('ssh', login.host, login.port,  'timeout')
+        });
+
+        const connArgs = { ...login };
+        if (connArgs.usePassword) {
+            connArgs.privateKey = undefined;
+        } else {
+            connArgs.password = undefined;
+        }
+        console.log("connecting...", JSON.stringify(connArgs));
+        s.conn.connect({ ...connArgs });
+
+        return s;
     }
 
     exeEnv() {
@@ -361,7 +359,7 @@ class PrevData {
     steal: number
 }
 
-class ShellSession {
+export class ShellSession {
     login: ServerLogins
     conn: Client
     stream: ClientChannel

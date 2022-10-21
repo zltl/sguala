@@ -24,4 +24,12 @@ contextBridge.exposeInMainWorld('stat', {
     close: (uuid) => ipcRenderer.invoke('sshClose', uuid),
 });
 
+contextBridge.exposeInMainWorld('ssh', {
+    'startShell': async (uuid, shellCnt) => {}
+});
+
+contextBridge.exposeInMainWorld('ipc', {
+    'send': (chan, data) => ipcRenderer.sendSync(chan, data),
+    'on': (chan, fn) => ipcRenderer.on(chan, fn),
+})
 

@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, ipcMain } from 'electron';
-import { LinuxStat, SshFetchStats } from './ssh';
+import { ShellSession, SshFetchStats } from './ssh';
 import {
   loadConfig,
   Config,
@@ -23,9 +23,10 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const SHELL_WINDOW_WEBPACK_ENTRY: string;
 declare const SHELL_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
+const ss = new SshFetchStats();
+
 
 const registerAllhandle = () => {
-  const ss = new SshFetchStats();
 
   ipcMain.handle('getAllConfig', async (): Promise<Config> => {
     const text = await loadConfig();
@@ -122,6 +123,7 @@ const createWindow = async () => {
   mainWindow.webContents.openDevTools();
 };
 
+let shellCnt = 0;
 
 const createShellWindow = async (uuid: string) => {
 
@@ -139,7 +141,7 @@ const createShellWindow = async (uuid: string) => {
     width: 800,
     autoHideMenuBar: true,
     webPreferences: {
-      additionalArguments: ['uuid=' + uuid], // window.process.argv
+      additionalArguments: ['uuid=' + uuid, `shellCnt=${shellCnt++}`], // window.process.argv
       contextIsolation: true, // must be set to true when contextBridge is enabled
       nodeIntegrationInWorker: true, // must be set to true when contextBridge is enabled
       preload: SHELL_WINDOW_PRELOAD_WEBPACK_ENTRY,
@@ -150,6 +152,16 @@ const createShellWindow = async (uuid: string) => {
 
   // Open the DevTools.
   shellWindow.webContents.openDevTools();
+
+  let s : ShellSession;
+  shellWindow.on('ready-to-show', () => {
+    s = ss.startShell(shellWindow, login, shellCnt);
+  });
+
+  shellWindow.on('close', () => {
+    s.conn.end();
+  });
+
 };
 
 // TODO: Uncaught TypeError: Cannot read properties of undefined (reading 'getCurrentWindow')
