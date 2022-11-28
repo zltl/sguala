@@ -7,6 +7,7 @@ import {
   EuiPopoverTitle,
   EuiPopover,
   EuiToolTip,
+  RIGHT_ALIGNMENT,
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
@@ -159,9 +160,10 @@ export class ServerCard extends React.Component {
               }
             >
               <EuiButtonIcon
+                style={{ 'margin-right': 40 }}
                 iconType="console"
                 aria-label='start terminal remote'
-                onClick={ () => { window.rterm.shellWindow(this.state.login.uuid); }  }
+                onClick={() => { window.rterm.shellWindow(this.state.login.uuid); }}
               />
             </EuiToolTip>
 
