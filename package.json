@@ -126,7 +126,6 @@
     "update-electron-app": "^2.0.1",
     "uuid": "^9.0.0",
     "xterm": "^5.0.0",
-    "xterm-addon-fit": "^0.6.0",
-    "xterm-for-react": "^1.0.4"
+    "xterm-addon-fit": "^0.6.0"
   }
 }
