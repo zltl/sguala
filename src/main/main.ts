@@ -152,8 +152,6 @@ const createWindow = async () => {
 
 let shellCnt = 0;
 
-const shellMapX = new Map();
-
 const createShellWindow = async (uuid: string) => {
 
   const login = await getServerConfig(uuid);
@@ -188,15 +186,10 @@ const createShellWindow = async (uuid: string) => {
   const k = `${uuid}/${shellCnt}`;
   shellWindow.on('ready-to-show', () => {
     s = ss.startShell(shellWindow, login, scnt);
-    shellMapX.set(k, s);
   });
 
   shellWindow.on('close', () => {
-    s = shellMapX.get(k);
-    if (s) {
-      s.conn.end();
-      shellMapX.delete(k);
-    }
+    s.conn.end();
   });
 
   shellCnt++;
