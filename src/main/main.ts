@@ -167,6 +167,7 @@ const createShellWindow = async (uuid: string) => {
     height: 600,
     width: 800,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       additionalArguments: ['uuid=' + uuid, `shellCnt=${shellCnt}`], // window.process.argv
       contextIsolation: true, // must be set to true when contextBridge is enabled

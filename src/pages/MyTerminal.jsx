@@ -1,7 +1,5 @@
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { Resizable } from "re-resizable";
-import ResizeObserver from "react-resize-observer";
 
 import { parse as queryParse } from 'querystring';
 
@@ -51,31 +49,24 @@ export class MyTerminal extends React.Component {
                 'cols': arg1.cols,
             });
         });
+        window.addEventListener('resize', () => {
+            this.fitAddon.fit();
+        });
         // this.term.write('Connecting ...\n');
         this.fitAddon.fit();
+
         this.term.onData(async (data) => {
             window.ipc.send(chanKey, {
                 'op': 'data',
                 'data': data.toString(),
             });
-            console.log("this is data:", data);
+            // console.log("this is data:", data);
         })
     }
 
     render() {
-        return (<>
-            <Resizable>
-                <div id="xterm" style={{ width: '100vw', height: '100vh' }} ref={c => this.XtermDiv = c} />
-            </Resizable>
-            <ResizeObserver
-                onResize={rect => {
-                    this.fitAddon.fit();
-                    console.log("Resized. New bounds:", rect.width, "x", rect.height);
-                }}
-                onPosition={rect => {
-                    console.log("Moved. New position:", rect.left, "x", rect.top);
-                }}
-            />
-        </>);
+        return (
+            <div id="xterm" style={{ margin: 0, height: '100%' }} ref={c => this.XtermDiv = c} />
+        );
     }
 }

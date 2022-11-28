@@ -19,7 +19,6 @@ export class SshFetchStats {
 
         s.conn.on('ready', async () => {
             console.log('ssh', login.host, login.port, 'ready');
-            s.conn.exec('export TERM=xterm-256color', () => { console.log('export ok') });
             s.conn.shell(
                 {
                     env: {
@@ -33,27 +32,32 @@ export class SshFetchStats {
                         return;
                     }
                     stream.write('export TERM=xterm-256color\n');
+                    win.setSize(800, 400);
 
                     ipcMain.on(chanKey, async (ev, data) => {
                         if (data.op == 'data') {
-                            console.log("get data from xterm", data.data);
+                            // console.log("get data from xterm", data.data);
                             stream.write(data.data);
                         } else if (data.op == 'resize') {
                             stream.setWindow(data.rows, data.cols, '', '');
                         }
-                        console.log("witten to remote");
+                        // console.log("witten to remote");
                     });
 
                     stream.on('close', () => {
                         console.log("CLOSE");
+                        win.send(chanKey, {
+                            'op': "data",
+                            'data': 'session closed',
+                        })
                     });
                     stream.on('data', async (data: any) => {
-                        console.log('send to ', chanKey);
+                        // console.log('send to ', chanKey);
                         win.send(chanKey, {
                             'op': "data",
                             "data": data,
                         });
-                        console.log("sended to xterm");
+                        // console.log("sended to xterm");
                     });
 
                 });
@@ -172,7 +176,7 @@ export class SshFetchStats {
 
             const CPU_Percentage = (totald - idled) / totald
             s.stat.cpuload = CPU_Percentage;
-            console.log('>>>>> cpu', CPU_Percentage);
+            // console.log('>>>>> cpu', CPU_Percentage);
         }
     }
 
@@ -187,7 +191,7 @@ export class SshFetchStats {
                 stream.on('close', (code: number, signal: any) => {
                     fn(s, content)
                 }).on('data', (data: string) => {
-                    console.log('ondata...', cmd);
+                    // console.log('ondata...', cmd);
                     content = content + data;
                 }).stderr.on('data', (data: string) => {
                     console.log('stderr ', cmd, data, s.serverLogins.host, s.serverLogins.port);
@@ -231,7 +235,7 @@ export class SshFetchStats {
             s.stat.memtotal = memtotal;
             s.stat.memavail = memavail;
             s.stat.memUsePercent = (memtotal - memavail) / memtotal;
-            console.log(">>>>> mem: ", memtotal, memavail, s.stat.memUsePercent);
+            // console.log(">>>>> mem: ", memtotal, memavail, s.stat.memUsePercent);
         });
     }
 
