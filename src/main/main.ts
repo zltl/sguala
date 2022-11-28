@@ -17,11 +17,16 @@ import { exportConfigToClipbard, mergeConfigFromClipbard } from './clipb';
 import { ServerLogins } from './serverlogins';
 import { SmtpConfig } from './smtpConfig';
 
+import path from 'path';
+
 const server = 'https://update.electronjs.org'
-const feed = `${server}/OWNER/REPO/${process.platform}-${process.arch}/${app.getVersion()}`
+const feed = `${server}/zltl/sguala/${process.platform}-${process.arch}/${app.getVersion()}`
 
 
-autoUpdater.setFeedURL({url: feed});
+autoUpdater.setFeedURL({ url: feed });
+setInterval(() => {
+  autoUpdater.checkForUpdates()
+}, 10 * 60 * 1000)
 
 
 
@@ -125,11 +130,13 @@ registerAllhandle();
 
 
 const createWindow = async () => {
+  console.log("__dirname=", __dirname);
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       contextIsolation: true, // must be set to true when contextBridge is enabled
       nodeIntegrationInWorker: true, // must be set to true when contextBridge is enabled
@@ -140,7 +147,7 @@ const createWindow = async () => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 };
 
 let shellCnt = 0;
@@ -171,9 +178,9 @@ const createShellWindow = async (uuid: string) => {
   shellWindow.loadURL(SHELL_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
 
   // Open the DevTools.
-  shellWindow.webContents.openDevTools();
+  // shellWindow.webContents.openDevTools();
 
-  let s : ShellSession;
+  let s: ShellSession;
   const scnt = shellCnt;
   shellWindow.on('ready-to-show', () => {
     s = ss.startShell(shellWindow, login, scnt);
