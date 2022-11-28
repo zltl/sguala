@@ -41,6 +41,16 @@ export class MyTerminal extends React.Component {
         this.term = new Terminal();
         this.term.loadAddon(this.fitAddon);
         this.term.open(this.XtermDiv);
+
+        this.term.onResize((arg1) => {
+            console.log("RESIZE: ", JSON.stringify(arg1));
+            window.ipc.send(chanKey, {
+                'op': 'resize',
+                'data': '',
+                'rows': arg1.rows,
+                'cols': arg1.cols,
+            });
+        });
         // this.term.write('Connecting ...\n');
         this.fitAddon.fit();
         this.term.onData(async (data) => {

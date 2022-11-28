@@ -19,31 +19,44 @@ export class SshFetchStats {
 
         s.conn.on('ready', async () => {
             console.log('ssh', login.host, login.port, 'ready');
-            s.conn.shell((err, stream) => {
-                if (err) {
-                    console.log(err);
-                    return;
-                }
-                ipcMain.on(chanKey, async (ev, data) => {
-                    console.log("get data from xterm", data.data);
-                    stream.write(data.data);
-                    console.log("witten to remote");
-                });
+            s.conn.exec('export TERM=xterm-256color', () => { console.log('export ok') });
+            s.conn.shell(
+                {
+                    env: {
+                        'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
+                        'TERM': 'xterm-256color'
+                    }
+                },
+                (err, stream) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    stream.write('export TERM=xterm-256color\n');
 
-                stream.on('close', () => {
-                    console.log("CLOSE");
-                });
-                stream.on('data', async (data: any) => {
-                    console.log("DDDD", data);
-                    console.log('send to ', chanKey);
-                    win.send(chanKey, {
-                        'op': "data",
-                        "data": data,
+                    ipcMain.on(chanKey, async (ev, data) => {
+                        if (data.op == 'data') {
+                            console.log("get data from xterm", data.data);
+                            stream.write(data.data);
+                        } else if (data.op == 'resize') {
+                            stream.setWindow(data.rows, data.cols, '', '');
+                        }
+                        console.log("witten to remote");
                     });
-                    console.log("sended to xterm");
-                });
 
-            });
+                    stream.on('close', () => {
+                        console.log("CLOSE");
+                    });
+                    stream.on('data', async (data: any) => {
+                        console.log('send to ', chanKey);
+                        win.send(chanKey, {
+                            'op': "data",
+                            "data": data,
+                        });
+                        console.log("sended to xterm");
+                    });
+
+                });
             // TODO: shell
         });
 
