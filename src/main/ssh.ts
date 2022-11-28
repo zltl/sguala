@@ -17,6 +17,7 @@ export class SshFetchStats {
         s.conn = new Client();
         const chanKey = 'SHELL_CHANNEL_' + login.uuid + `/${cnt}`;
 
+
         s.conn.on('ready', async () => {
             console.log('ssh', login.host, login.port, 'ready');
             s.conn.shell(
@@ -46,17 +47,25 @@ export class SshFetchStats {
 
                     stream.on('close', () => {
                         console.log("CLOSE");
-                        win.send(chanKey, {
-                            'op': "data",
-                            'data': 'session closed',
-                        })
+                        try {
+                            win.send(chanKey, {
+                                'op': "data",
+                                'data': 'session closed',
+                            });
+                        } catch (e) {
+                            console.log("E", e);
+                        }
                     });
                     stream.on('data', async (data: any) => {
                         // console.log('send to ', chanKey);
-                        win.send(chanKey, {
-                            'op': "data",
-                            "data": data,
-                        });
+                        try {
+                            win.send(chanKey, {
+                                'op': "data",
+                                "data": data,
+                            });
+                        } catch (e) {
+                            console.log("E", e);
+                        }
                         // console.log("sended to xterm");
                     });
 
