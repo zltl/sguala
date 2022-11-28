@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('config', {
     getAll: async () => await ipcRenderer.invoke('getAllConfig'),
     set: async (arg) => await ipcRenderer.invoke('putServerConfig', arg),
     del: async (uuid) => await ipcRenderer.invoke('delServerConfig', uuid),
-    get: async(uuid) => await ipcRenderer.invoke('getServerConfig', uuid),
+    get: async (uuid) => await ipcRenderer.invoke('getServerConfig', uuid),
 
     getAlert: async (uuid) => await ipcRenderer.invoke('getAlertConfig', uuid),
     delAlert: async (uuid) => await ipcRenderer.invoke('delAlertConfig', uuid),
@@ -24,12 +24,14 @@ contextBridge.exposeInMainWorld('stat', {
     close: (uuid) => ipcRenderer.invoke('sshClose', uuid),
 });
 
-contextBridge.exposeInMainWorld('ssh', {
-    'startShell': async (uuid, shellCnt) => {}
+
+contextBridge.exposeInMainWorld('rterm', {
+    shellWindow: (uuid) => ipcRenderer.invoke('shellWindow', uuid),
 });
 
+
 contextBridge.exposeInMainWorld('ipc', {
-    'send': (chan, data) => ipcRenderer.sendSync(chan, data),
+    'send': (chan, data) => ipcRenderer.send(chan, data),
     'on': (chan, fn) => ipcRenderer.on(chan, fn),
-})
+});
 

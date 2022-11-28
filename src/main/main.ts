@@ -141,23 +141,25 @@ const createShellWindow = async (uuid: string) => {
     width: 800,
     autoHideMenuBar: true,
     webPreferences: {
-      additionalArguments: ['uuid=' + uuid, `shellCnt=${shellCnt++}`], // window.process.argv
+      additionalArguments: ['uuid=' + uuid, `shellCnt=${shellCnt}`], // window.process.argv
       contextIsolation: true, // must be set to true when contextBridge is enabled
       nodeIntegrationInWorker: true, // must be set to true when contextBridge is enabled
       preload: SHELL_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
   });
   // and load the index.html of the app.
-  shellWindow.loadURL(SHELL_WINDOW_WEBPACK_ENTRY + '?uuid=' + uuid);
+  shellWindow.loadURL(SHELL_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
 
   // Open the DevTools.
   shellWindow.webContents.openDevTools();
 
   let s : ShellSession;
+  const scnt = shellCnt;
   shellWindow.on('ready-to-show', () => {
-    s = ss.startShell(shellWindow, login, shellCnt);
+    s = ss.startShell(shellWindow, login, scnt);
   });
 
+  shellCnt++;
   shellWindow.on('close', () => {
     s.conn.end();
   });
@@ -170,11 +172,13 @@ app.disableHardwareAcceleration()
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-// app.on('ready', createWindow);
+app.on('ready', createWindow);
+/*
 const createMyWindow = () => {
   createShellWindow('d5105475-269c-4b5f-92ca-6c0ed54014e5');
 }
 app.on('ready', createMyWindow);
+*/
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -189,8 +193,8 @@ app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    // createWindow();
-    createShellWindow('d5105475-269c-4b5f-92ca-6c0ed54014e5');
+    createWindow();
+    // createShellWindow('d5105475-269c-4b5f-92ca-6c0ed54014e5');
   }
 });
 

@@ -14,12 +14,36 @@ export class SshFetchStats {
         console.log('start shell...... ', login.name);
         const s = new ShellSession();
         s.login = login;
-        console.log(".......................")
         s.conn = new Client();
-        const chanKey = 'SHELL_CHANNEL_' + login.uuid;
+        const chanKey = 'SHELL_CHANNEL_' + login.uuid + `/${cnt}`;
 
         s.conn.on('ready', async () => {
             console.log('ssh', login.host, login.port, 'ready');
+            s.conn.shell((err, stream) => {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                ipcMain.on(chanKey, async (ev, data) => {
+                    console.log("get data from xterm", data.data);
+                    stream.write(data.data);
+                    console.log("witten to remote");
+                });
+
+                stream.on('close', () => {
+                    console.log("CLOSE");
+                });
+                stream.on('data', async (data: any) => {
+                    console.log("DDDD", data);
+                    console.log('send to ', chanKey);
+                    win.send(chanKey, {
+                        'op': "data",
+                        "data": data,
+                    });
+                    console.log("sended to xterm");
+                });
+
+            });
             // TODO: shell
         });
 
@@ -28,7 +52,7 @@ export class SshFetchStats {
         });
 
         s.conn.on('timeout', async () => {
-            console.log('ssh', login.host, login.port,  'timeout')
+            console.log('ssh', login.host, login.port, 'timeout')
         });
 
         const connArgs = { ...login };

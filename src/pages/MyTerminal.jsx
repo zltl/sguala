@@ -10,9 +10,6 @@ import React from 'react';
 import "./xterm.css";
 
 
-
-// let term;
-
 export class MyTerminal extends React.Component {
     constructor(props) {
         super(props);
@@ -28,23 +25,29 @@ export class MyTerminal extends React.Component {
         let query = queryParse(global.location.search);
         console.log(query);
         const uuid = query['?uuid'];
+        const shellCnt = query['shellCnt'];
         const login = window.config.get(uuid).then((login) => {
             document.title = login.name;
-            console.log("------------log=", login);
         });
-        const chanKey = 'SHELL_CHANNEL_' + uuid;
+        const chanKey = 'SHELL_CHANNEL_' + uuid + '/' + shellCnt;
+        console.log("chanKey=", chanKey)
 
-        window.ipc.on(chanKey, (e, data)=> {
-            this.term.write(data);
+        window.ipc.on(chanKey, (e, data) => {
+            if (data.op == 'data') {
+                this.term.write(data.data);
+            }
         });
 
         this.term = new Terminal();
         this.term.loadAddon(this.fitAddon);
         this.term.open(this.XtermDiv);
-        this.term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ')
+        // this.term.write('Connecting ...\n');
         this.fitAddon.fit();
-        this.term.onData((data) => {
-            window.ipc.send(chanKey, data);
+        this.term.onData(async (data) => {
+            window.ipc.send(chanKey, {
+                'op': 'data',
+                'data': data.toString(),
+            });
             console.log("this is data:", data);
         })
     }

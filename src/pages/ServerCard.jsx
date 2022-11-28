@@ -125,7 +125,6 @@ export class ServerCard extends React.Component {
             </EuiPopover>
 
             <EuiPopover
-              style={{ marginRight: 30 }}
               panelStyle={{ minWidth: 400 }}
               button={
                 <EuiToolTip
@@ -151,6 +150,21 @@ export class ServerCard extends React.Component {
                 uuid={this.state.login.uuid}
                 closePopover={() => this.setIsAlertEditOpen(false)} />
             </EuiPopover>
+
+            <EuiToolTip
+              content={
+                <p>
+                  远程登录
+                </p>
+              }
+            >
+              <EuiButtonIcon
+                iconType="console"
+                aria-label='start terminal remote'
+                onClick={ () => { window.rterm.shellWindow(this.state.login.uuid); }  }
+              />
+            </EuiToolTip>
+
 
             <EuiToolTip
               position="top"
