@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('config', {
     delAlert: async (uuid) => await ipcRenderer.invoke('delAlertConfig', uuid),
     pubAlert: async (arg) => await ipcRenderer.invoke('putAlertConfig', arg),
 
+    getSmtpConfig: async (uuid) => await ipcRenderer.invoke('getSmtpConfig', uuid),
+    putSmtpConfig: async (arg) => await ipcRenderer.invoke('putSmtpConfig', arg),
+
+
     exportClipboard: async () => await ipcRenderer.invoke('exportClipboard'),
     importClipboard: async () => await ipcRenderer.invoke('importClipboard'),
 });

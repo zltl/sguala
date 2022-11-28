@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { AlertConfig } from "./alertConfig";
+import { getSmtpConfig } from "./conf";
 import { ServerLogins } from "./serverlogins";
 import { LinuxStat } from "./ssh";
 
@@ -18,8 +19,7 @@ const toName = [
     '崽种',
     '废物',
     '白痴',
-    '断脊野狗',
-    '老板',
+    '断脊野犬',
     '变态',
     '蠕动的蛆',
     '靓仔',
@@ -69,17 +69,24 @@ export async function SendMail(
 
     // console.log('SendMail: conf:', conf, 'login', login, 'stat', stat, 'cpu', cpu, 'mem', mem, 'disk', disk, 'down', hostDown);
 
+    const smtpc = await getSmtpConfig();
+
     const transporter = nodemailer.createTransport({
-        host: conf.fromHost,
-        port: conf.fromPort,
-        secure: conf.fromSecure,
+        host: smtpc.fromHost,
+        port: smtpc.fromPort,
+        secure: smtpc.fromSecure,
         auth: {
-            user: conf.fromEmail,
-            pass: conf.fromPassword,
+            user: smtpc.fromEmail,
+            pass: smtpc.fromPassword,
         },
     });
 
     let subject = randStr(EmojiSubject);
+
+    if (smtpc.etiquette) {
+        subject = '';
+    }
+
     let first = false;
     if (cpu) {
         first = true;
@@ -95,8 +102,11 @@ export async function SendMail(
     if (hostDown) {
         subject += (first ? ' ' : '，') + randStr(hostDownSubject);
     }
-
-    subject += '，' + randStr(toName) + '！ -- ' + login.name;
+    if (smtpc.etiquette) {
+        subject += ', ' + login.name;
+    } else {
+        subject += '，' + randStr(toName) + '！ -- ' + login.name;
+    }
 
     let text =
         `服务器名称: ${login.name}
@@ -113,14 +123,14 @@ CPU 占用率: ${stat.cpuload}
 
     try {
         const info = await transporter.sendMail({
-            from: '"小凶许" ' + conf.fromEmail, // sender address
+            from: '"小凶许" ' + smtpc.fromEmail, // sender address
             to: conf.toEmail, // list of receivers
             subject: subject, // Subject line
             text: text, // plain text body
         });
         console.log("Message sent: %s", info.messageId);
     } catch (e) {
-        console.log('send mail from', conf.fromEmail, 'to', conf.toEmail, 'failed', e);
+        console.log('send mail from', smtpc.fromEmail, 'to', conf.toEmail, 'failed', e);
     }
     console.log("subject=", subject);
 }

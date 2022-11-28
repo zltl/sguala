@@ -8,12 +8,14 @@ import { v4 as uuidv4 } from 'uuid';
 
 import path from 'path';
 import { AlertConfig } from './alertConfig';
+import { SmtpConfig } from './smtpConfig';
 
 export class Config {
     version: string = VersionStr()
     fetchStatInterval: number = 10 * 1000
     servers: ServerLogins[] = []
     alerts: AlertConfig[] = []
+    smtpc: SmtpConfig
 }
 
 function getConfigFilePath(): string {
@@ -33,11 +35,6 @@ export async function loadConfig(): Promise<Config> {
                 // insert default rule if empty
                 "uuid": "0",
                 "isOpen": false,
-                "fromHost": "smtp.163.com",
-                "fromPort": 465,
-                "fromSecure": true,
-                "fromEmail": "sguala@163.com",
-                "fromPassword": "FAEUVUZKNWSYHCBI",
                 "toEmail": "",
                 "cpuCheck": false,
                 "memCheck": false,
@@ -52,6 +49,15 @@ export async function loadConfig(): Promise<Config> {
                 "upAlertForValue": 5,
                 "mailInterval": 120
             }];
+        }
+        if (!res.smtpc) {
+            res.smtpc = {
+                "fromHost": "smtp.163.com",
+                "fromPort": 465,
+                "fromSecure": true,
+                "fromEmail": "sguala@163.com",
+                "fromPassword": "FAEUVUZKNWSYHCBI",
+            };
         }
         return res;
     } catch (e: any) {
@@ -116,6 +122,19 @@ export async function getAlertConfig(uuid: string): Promise<AlertConfig> {
     }
     return undefined;
 }
+
+export async function getSmtpConfig(): Promise<SmtpConfig> {
+    const config = await loadConfig();
+    return config.smtpc;
+}
+
+export async function putSmtpConfig(arg: SmtpConfig) {
+    const config = await loadConfig();
+    config.smtpc = arg;
+    await storeConfig(config);
+}
+
+
 
 export async function delAlertConfig(uuid: string) {
     const config = await loadConfig();

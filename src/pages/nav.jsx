@@ -48,12 +48,22 @@ export function Nav(props) {
           }}
           label="主界面"
           isActive={activeID == 'MAIN'} />
+
+        <EuiListGroupItem
+          onClick={() => {
+            setActivePage('SMTP')
+          }}
+          label="发件箱设置"
+          isActive={activeID == 'SMTP'} />
+
+
         <EuiListGroupItem
           onClick={() => {
             setActivePage('ABOUT')
           }}
           label="关于小凶许"
           isActive={activeID == 'ABOUT'} />
+
       </EuiListGroup>
 
     </EuiCollapsibleNav>

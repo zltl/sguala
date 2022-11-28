@@ -20,11 +20,6 @@ export function EditAlert(props) {
     let alerts = {};
 
     const [isOpen, setIsOpen] = useState(false);
-    const [fromHost, setFromHost] = useState(undefined); // smtp
-    const [fromPort, setFromPort] = useState(465);
-    const [fromSecure, setFromSecure] = useState(true);
-    const [fromEmail, setFromEmail] = useState(undefined);
-    const [fromPassword, setFromPassword] = useState(undefined);
     const [toEmail, setToEmail] = useState(undefined);
 
     const [cpuCheck, setCpuCheck] = useState(false);
@@ -53,11 +48,6 @@ export function EditAlert(props) {
                     return;
                 }
                 setIsOpen(!!alerts.isOpen);
-                setFromHost(alerts.fromHost); // smtp
-                setFromPort(alerts.fromPort);
-                setFromSecure(alerts.fromSecure);
-                setFromEmail(alerts.fromEmail);
-                setFromPassword(alerts.fromPassword);
                 setToEmail(alerts.toEmail);
 
                 setCpuCheck(!!alerts.cpuCheck);
@@ -88,11 +78,6 @@ export function EditAlert(props) {
         await window.config.pubAlert({
             uuid: props.uuid,
             isOpen: isOpen,
-            fromHost: fromHost,
-            fromPort: fromPort,
-            fromSecure: fromSecure,
-            fromEmail: fromEmail,
-            fromPassword: fromPassword,
             toEmail: toEmail,
 
             cpuCheck: cpuCheck,
@@ -240,48 +225,6 @@ export function EditAlert(props) {
             />
 
             <EuiSpacer />
-
-            <EuiFormRow label="邮件 smtp 服务器" >
-                <EuiFieldText
-                    placeholder='smtp.gmail.com'
-                    value={fromHost}
-                    onChange={(e) => setFromHost(e.target.value)} />
-            </EuiFormRow>
-            <EuiFormRow label="邮件 smtp 端口号" >
-                <EuiFieldText
-                    placeholder='465'
-                    value={fromPort}
-                    onChange={(e) => setFromPort(e.target.value)} />
-            </EuiFormRow>
-            <EuiToolTip
-                position="top"
-                content={
-                    <p>
-                        一般端口是<EuiCode>465</EuiCode>就勾上，<EuiCode>587</EuiCode>或<EuiCode>25</EuiCode>就别勾了
-                    </p>
-                }>
-                <EuiCheckbox
-                    id='useSecure'
-                    label='安全链接'
-                    checked={fromSecure}
-                    onChange={(e) => setFromSecure(e.target.checked)}
-                />
-            </EuiToolTip>
-
-            <EuiFormRow label='发件箱地址'>
-                <EuiFieldText
-                    placeholder='alert@quant67.com'
-                    value={fromEmail}
-                    onChange={(e) => setFromEmail(e.target.value)}
-                />
-            </EuiFormRow>
-            <EuiFormRow label='发件箱密码'>
-                <EuiFieldPassword
-                    type='dual'
-                    value={fromPassword}
-                    onChange={(e) => setFromPassword(e.target.value)}
-                />
-            </EuiFormRow>
 
             <EuiFormRow label='收件箱地址'>
                 <EuiFieldText

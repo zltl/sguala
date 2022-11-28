@@ -15,6 +15,7 @@ import '@elastic/eui/dist/eui_theme_light.css';
 
 
 import { AddServerPage } from './AddServerPage';
+import { EditSmtp } from './EditSmtp';
 
 // main content of app.
 export class Sguala extends React.Component {
@@ -118,6 +119,8 @@ export class Sguala extends React.Component {
           <ServerCardList updateCardList={async () => await this.state.updateCardListFN()}
             setUpdateCB={(fn) => this.setserverCardListUpdate(fn)} />
         </div>}
+
+        {this.state.currentPage == 'SMTP' && <div><EditSmtp /></div>}
 
         {this.state.currentPage == 'ABOUT' && <Abount />}
 
