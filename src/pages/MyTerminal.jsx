@@ -6,13 +6,16 @@ import { parse as queryParse } from 'querystring';
 import React from 'react';
 
 import "./xterm.css";
+import { EuiFocusTrap, EuiOverlayMask, EuiPanel } from '@elastic/eui';
 
 
 export class MyTerminal extends React.Component {
     constructor(props) {
         super(props);
 
-        this.state = {};
+        this.state = {
+            maskOpen: false,
+        };
 
         this.term = null;
         this.fitAddon = new FitAddon();
@@ -62,11 +65,42 @@ export class MyTerminal extends React.Component {
             });
             // console.log("this is data:", data);
         })
+
+        window.document.addEventListener('drop', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            for (const f of event.dataTransfer.files) {
+                console.log('File Path of dragged files:', f.path);
+            }
+            this.setState({ maskOpen: true })
+        });
+        window.document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        window.document.addEventListener('dragenter', (event) => {
+            console.log('File is in the Drop space');
+        });
+        window.document.addEventListener('dragleave', (event) => {
+            console.log('File has left the Drop space');
+        });
+
     }
+
+
 
     render() {
         return (
-            <div id="xterm" style={{ margin: 0, height: '100%' }} ref={c => this.XtermDiv = c} />
+            <>
+                <div id="xterm" style={{ margin: 0, height: '100%' }} ref={c => this.XtermDiv = c} />
+                {this.state.maskOpen && <EuiOverlayMask>
+                    <EuiFocusTrap>
+                        <EuiPanel>
+                            <h1>hhhhhhhhhhhhh</h1>
+                        </EuiPanel>
+                    </EuiFocusTrap>
+                </EuiOverlayMask>}
+            </>
         );
     }
 }

@@ -90,6 +90,7 @@ export async function putServerConfig(arg: ServerLogins) {
 }
 
 export async function delServerConfig(uuid: string) {
+    console.log("uuid=", uuid);
     const config = await loadConfig();
     for (let i = 0; i < config.servers.length; ++i) {
         if (config.servers[i].uuid == uuid) {

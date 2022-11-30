@@ -253,7 +253,7 @@ export class SshFetchStats {
             const getFieldsValue = (line: string): DiskStat => {
                 const fields = line.split(/\s+/);
                 if (fields.length < 5) {
-                    console.log(`line ${line} extract failed`);
+                    // console.log(`line ${line} extract failed`);
                     return undefined;
                 }
                 const res = new DiskStat();
@@ -272,6 +272,7 @@ export class SshFetchStats {
                 }
                 // console.log('>>>>> disk ', dstat);
                 if (dstat.name == 'tmpfs' ||
+                    dstat.name == 'devtmpfs' ||
                     dstat.name == 'udev' ||
                     dstat.name == 'none' ||
                     dstat.name == 'overlay') {

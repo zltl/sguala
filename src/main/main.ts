@@ -147,7 +147,7 @@ const createWindow = async () => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 };
 
 let shellCnt = 0;
@@ -179,11 +179,10 @@ const createShellWindow = async (uuid: string) => {
   shellWindow.loadURL(SHELL_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
 
   // Open the DevTools.
-  // shellWindow.webContents.openDevTools();
+  shellWindow.webContents.openDevTools();
 
   let s: ShellSession;
   const scnt = shellCnt;
-  const k = `${uuid}/${shellCnt}`;
   shellWindow.on('ready-to-show', () => {
     s = ss.startShell(shellWindow, login, scnt);
   });

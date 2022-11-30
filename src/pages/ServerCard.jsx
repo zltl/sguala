@@ -32,6 +32,7 @@ export class ServerCard extends React.Component {
       login: props.login,
       isAlertEditOpen: false,
       isEditOpen: false,
+      updateCardList: props.updateCardList,
     };
   }
 
@@ -182,7 +183,7 @@ export class ServerCard extends React.Component {
                 onClick={async () => {
                   console.log('delete', this.state.login.uuid);
                   await window.config.del(this.state.login.uuid);
-                  await this.props.updateCardList();
+                  await this.state.updateCardList();
                 }}
               />
             </EuiToolTip>
@@ -190,7 +191,6 @@ export class ServerCard extends React.Component {
           </>
         }
       >
-
 
         <EuiProgress
           valueText={true}

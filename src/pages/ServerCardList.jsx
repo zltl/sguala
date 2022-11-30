@@ -1,5 +1,5 @@
 import React from 'react';
-import { EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
+import { EuiFlexGroup, EuiFlexItem, EuiFlexGrid } from '@elastic/eui';
 import { ServerCard } from './ServerCard';
 
 
@@ -22,7 +22,7 @@ export class ServerCardList extends React.Component {
 
     async loadConfig() {
         const configs = await window.config.getAll();
-        this.setState((st) => {
+        this.setState(() => {
             return {
                 servers: configs.servers,
             };
@@ -50,9 +50,9 @@ export class ServerCardList extends React.Component {
             <div style={{
                 padding: 20,
             }}>
-                <EuiFlexGroup gutterSize="s">
+                <EuiFlexGrid gutterSize="s" columns={3}>
                     {srvs}
-                </EuiFlexGroup>
+                </EuiFlexGrid>
             </div >
         );
     }
