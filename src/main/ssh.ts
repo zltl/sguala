@@ -290,87 +290,106 @@ export class SshFetchStats {
 
     getStats(s: LinuxSession) {
         // console.log('getStats', s.serverLogins.host, s.serverLogins.port);
-        this.getCPULoad(s);
-        this.getMemInfo(s);
-        this.getDiskStat(s);
+        try {
+            this.getCPULoad(s);
+            this.getMemInfo(s);
+            this.getDiskStat(s);
+        } catch (e) {
+            console.log("E", e);
+        }
     }
 
     sshConnect(s: LinuxSession) {
-        console.log('connecting', s.serverLogins.host, s.serverLogins.port);
-        s.conn = new Client();
-        s.stat.online = OnlineStatus.CONNECTING;
-        s.conn.on('ready', async () => {
-            s.stat.online = OnlineStatus.ONLINE;
-            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
-            this.getStats(s);
-        });
+        try {
+            console.log('connecting', s.serverLogins.host, s.serverLogins.port);
+            s.conn = new Client();
+            s.stat.online = OnlineStatus.CONNECTING;
+            s.conn.on('ready', async () => {
+                s.stat.online = OnlineStatus.ONLINE;
+                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
+                this.getStats(s);
+            });
 
-        s.conn.on('close', async () => {
-            s.stat.online = OnlineStatus.INIT;
-            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'close')
-        });
+            s.conn.on('close', async () => {
+                s.stat.online = OnlineStatus.INIT;
+                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'close')
+            });
 
-        s.conn.on('timeout', async () => {
-            s.stat.online = OnlineStatus.INIT;
-            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
-        });
+            s.conn.on('timeout', async () => {
+                s.stat.online = OnlineStatus.INIT;
+                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
+            });
 
-        const connArgs = { ...s.serverLogins };
-        if (connArgs.usePassword) {
-            connArgs.privateKey = undefined;
-        } else {
-            connArgs.password = undefined;
+            const connArgs = { ...s.serverLogins };
+            if (connArgs.usePassword) {
+                connArgs.privateKey = undefined;
+            } else {
+                connArgs.password = undefined;
+            }
+            s.conn.connect({ ...connArgs });
+
+        } catch (e) {
+            console.log("E", e);
         }
-        s.conn.connect({ ...connArgs });
     }
 
     closeServer(uuid: string) {
-        const s = this.srvStats.get(uuid);
-        if (!s) {
-            return;
+        try {
+            const s = this.srvStats.get(uuid);
+            if (!s) {
+                return;
+            }
+            console.log("closeing", s.serverLogins.name);
+            s.conn && s.conn.end();
+            s.closing = true;
+            this.srvStats.delete(uuid);
+
+        } catch (e) {
+            console.log("E", e);
         }
-        console.log("closeing", s.serverLogins.name);
-        s.conn && s.conn.end();
-        s.closing = true;
-        this.srvStats.delete(uuid);
     }
 
     registerServer(ss: ServerLogins) {
-        console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
-        let s = this.srvStats.get(ss.uuid);
-        if (!s) {
-            s = new LinuxSession();
-            s.serverLogins = ss;
-            this.srvStats.set(ss.uuid, s);
+        try {
+
+            console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
+            let s = this.srvStats.get(ss.uuid);
+            if (!s) {
+                s = new LinuxSession();
+                s.serverLogins = ss;
+                this.srvStats.set(ss.uuid, s);
+            }
+            this.sshConnect(s);
+
+            const fn = async (s: LinuxSession) => {
+                if (s.closing) {
+                    console.log('server', s.serverLogins.name, 'close');
+                    return;
+                }
+
+                if (s.stat.online == OnlineStatus.INIT) {
+                    this.sshConnect(s);
+                }
+
+                if (s.stat.online == OnlineStatus.ONLINE) {
+                    this.getStats(s);
+                }
+                let timeoutMiseconds = 10 * 1000;
+                if (!s.stat.cpuload) {
+                    timeoutMiseconds = 1000;
+                }
+
+                setTimeout(() => {
+                    (async () => {
+                        await fn(s);
+                    })();
+                }, timeoutMiseconds);
+            };
+
+            fn(s);
+        } catch (e) {
+            console.log("E", e);
         }
-        this.sshConnect(s);
-
-        const fn = async (s: LinuxSession) => {
-            if (s.closing) {
-                console.log('server', s.serverLogins.name, 'close');
-                return;
-            }
-
-            if (s.stat.online == OnlineStatus.INIT) {
-                this.sshConnect(s);
-            }
-
-            if (s.stat.online == OnlineStatus.ONLINE) {
-                this.getStats(s);
-            }
-            let timeoutMiseconds = 10 * 1000;
-            if (!s.stat.cpuload) {
-                timeoutMiseconds = 1000;
-            }
-
-            setTimeout(() => {
-                (async () => {
-                    await fn(s);
-                })();
-            }, timeoutMiseconds);
-        };
-
-        fn(s);
     }
 }
 
