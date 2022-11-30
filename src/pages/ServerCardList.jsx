@@ -35,10 +35,17 @@ export class ServerCardList extends React.Component {
     }
 
     render() {
+        let first = true;
         const srvs = this.state.servers.map((item) => {
+            let isFirst = first;
+            if (first) {
+                first = false;
+            }
             return (
                 <EuiFlexItem key={JSON.stringify(item)}>
-                    <ServerCard login={item}
+                    <ServerCard
+                        isFirst={isFirst}
+                        login={item}
                         updateCardList={async () => {
                             await this.loadConfig();
                         }} />

@@ -11,6 +11,7 @@ import {
   getServerConfig,
   getSmtpConfig,
   putSmtpConfig,
+  moveFront,
 } from './conf';
 import { AlertConfig } from './alertConfig';
 import { exportConfigToClipbard, mergeConfigFromClipbard } from './clipb';
@@ -67,7 +68,10 @@ const registerAllhandle = () => {
     return await getServerConfig(uuid);
   });
 
-
+  ipcMain.handle('configMoveFront', async (event: any, uuid: string) => {
+    console.log('move front', uuid);
+    await moveFront(uuid);
+  });
 
   ipcMain.handle('delAlertConfig', async (event: any, uuid: string) => {
     console.log("delAlertConfig...", uuid);
@@ -130,7 +134,6 @@ registerAllhandle();
 
 
 const createWindow = async () => {
-  console.log("__dirname=", __dirname);
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     height: 600,

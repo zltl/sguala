@@ -111,6 +111,23 @@ export async function getServerConfig(uuid: string): Promise<ServerLogins> {
     return undefined;
 }
 
+export async function moveFront(uuid: string) {
+    const config = await loadConfig();
+
+    for (let i = 0; i < config.servers.length; ++i) {
+        if (config.servers[i].uuid == uuid) {
+            if (i == 0) {
+                return;
+            }
+            const tmp = config.servers[i-1];
+            config.servers[i-1] = config.servers[i];
+            config.servers[i] = tmp;
+            await storeConfig(config);
+            return;
+        }
+    }
+}
+
 export async function getAlertConfig(uuid: string): Promise<AlertConfig> {
     const config = await loadConfig();
     for (let i = 0; i < config.alerts.length; ++i) {

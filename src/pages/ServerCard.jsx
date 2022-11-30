@@ -33,6 +33,7 @@ export class ServerCard extends React.Component {
       isAlertEditOpen: false,
       isEditOpen: false,
       updateCardList: props.updateCardList,
+      isFirst: props.isFirst,
     };
   }
 
@@ -75,6 +76,12 @@ export class ServerCard extends React.Component {
     return 'danger';
   }
 
+  async moveFront() {
+    console.log('move front ', this.state.login.uuid);
+    await window.config.configMoveFront(this.state.login.uuid);
+    this.props.updateCardList();
+  }
+
   render() {
     const diskX = this.state.stat.disks.map((it) => {
       return (
@@ -99,6 +106,31 @@ export class ServerCard extends React.Component {
         }
         description={
           <>
+            <EuiPopover
+              panelStyle={{ minWidth: 400 }}
+              button={
+                <EuiToolTip
+                  position="top"
+                  content={
+                    <p>
+                      移动到前面
+                    </p>
+                  }
+                >
+                  <EuiButtonIcon
+                    isDisabled={this.state.isFirst}
+                    iconType="sortLeft"
+                    aria-label='move card up'
+                    onClick={() => { this.moveFront() }}
+                  />
+                </EuiToolTip>
+              }
+              isOpen={this.state.isEditOpen}
+              closePopover={() => this.setIsEditOpen(false)}
+            >
+            </EuiPopover>
+
+
             <EuiPopover
               panelStyle={{ minWidth: 400 }}
               button={

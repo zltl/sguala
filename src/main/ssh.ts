@@ -17,79 +17,82 @@ export class SshFetchStats {
         s.conn = new Client();
         const chanKey = 'SHELL_CHANNEL_' + login.uuid + `/${cnt}`;
 
-
-        s.conn.on('ready', async () => {
-            console.log('ssh', login.host, login.port, 'ready');
-            s.conn.shell(
-                {
-                    env: {
-                        'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
-                        'TERM': 'xterm-256color'
-                    }
-                },
-                (err, stream) => {
-                    if (err) {
-                        console.log(err);
-                        return;
-                    }
-                    stream.write('export TERM=xterm-256color\n');
-                    win.setSize(800, 400);
-
-                    ipcMain.on(chanKey, async (ev, data) => {
-                        if (data.op == 'data') {
-                            // console.log("get data from xterm", data.data);
-                            stream.write(data.data);
-                        } else if (data.op == 'resize') {
-                            stream.setWindow(data.rows, data.cols, '', '');
+        try {
+            s.conn.on('ready', async () => {
+                console.log('ssh', login.host, login.port, 'ready');
+                s.conn.shell(
+                    {
+                        env: {
+                            'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
+                            'TERM': 'xterm-256color'
                         }
-                        // console.log("witten to remote");
-                    });
-
-                    stream.on('close', () => {
-                        console.log("CLOSE");
-                        try {
-                            win.send(chanKey, {
-                                'op': "data",
-                                'data': 'session closed',
-                            });
-                        } catch (e) {
-                            console.log("E", e);
+                    },
+                    (err, stream) => {
+                        if (err) {
+                            console.log(err);
+                            return;
                         }
+                        stream.write('export TERM=xterm-256color\n');
+                        win.setSize(800, 400);
+
+                        ipcMain.on(chanKey, async (ev, data) => {
+                            if (data.op == 'data') {
+                                // console.log("get data from xterm", data.data);
+                                stream.write(data.data);
+                            } else if (data.op == 'resize') {
+                                stream.setWindow(data.rows, data.cols, '', '');
+                            }
+                            // console.log("witten to remote");
+                        });
+
+                        stream.on('close', () => {
+                            console.log("CLOSE");
+                            try {
+                                win.send(chanKey, {
+                                    'op': "data",
+                                    'data': 'session closed',
+                                });
+                            } catch (e) {
+                                console.log("E", e);
+                            }
+                        });
+                        stream.on('data', async (data: any) => {
+                            // console.log('send to ', chanKey);
+                            try {
+                                win.send(chanKey, {
+                                    'op': "data",
+                                    "data": data,
+                                });
+                            } catch (e) {
+                                console.log("E", e);
+                            }
+                            // console.log("sended to xterm");
+                        });
+
                     });
-                    stream.on('data', async (data: any) => {
-                        // console.log('send to ', chanKey);
-                        try {
-                            win.send(chanKey, {
-                                'op': "data",
-                                "data": data,
-                            });
-                        } catch (e) {
-                            console.log("E", e);
-                        }
-                        // console.log("sended to xterm");
-                    });
+                // TODO: shell
+            });
 
-                });
-            // TODO: shell
-        });
+            s.conn.on('close', async () => {
+                console.log('ssh', login.host, login.port, 'close')
+            });
 
-        s.conn.on('close', async () => {
-            console.log('ssh', login.host, login.port, 'close')
-        });
+            s.conn.on('timeout', async () => {
+                console.log('ssh', login.host, login.port, 'timeout')
+            });
 
-        s.conn.on('timeout', async () => {
-            console.log('ssh', login.host, login.port, 'timeout')
-        });
+            const connArgs = { ...login };
+            if (connArgs.usePassword) {
+                connArgs.privateKey = undefined;
+            } else {
+                connArgs.password = undefined;
+            }
+            console.log("connecting...", JSON.stringify(connArgs));
+            s.conn.connect({ ...connArgs });
 
-        const connArgs = { ...login };
-        if (connArgs.usePassword) {
-            connArgs.privateKey = undefined;
-        } else {
-            connArgs.password = undefined;
+        } catch (e) {
+            console.log("E", e);
         }
-        console.log("connecting...", JSON.stringify(connArgs));
-        s.conn.connect({ ...connArgs });
-
         return s;
     }
 
@@ -286,7 +289,7 @@ export class SshFetchStats {
     }
 
     getStats(s: LinuxSession) {
-        console.log('getStats', s.serverLogins.host, s.serverLogins.port);
+        // console.log('getStats', s.serverLogins.host, s.serverLogins.port);
         this.getCPULoad(s);
         this.getMemInfo(s);
         this.getDiskStat(s);

@@ -96,7 +96,7 @@ export class MyTerminal extends React.Component {
                 {this.state.maskOpen && <EuiOverlayMask>
                     <EuiFocusTrap>
                         <EuiPanel>
-                            <h1>hhhhhhhhhhhhh</h1>
+                            <h1>还不行</h1>
                         </EuiPanel>
                     </EuiFocusTrap>
                 </EuiOverlayMask>}
