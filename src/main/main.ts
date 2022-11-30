@@ -182,7 +182,7 @@ const createShellWindow = async (uuid: string) => {
   shellWindow.loadURL(SHELL_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
 
   // Open the DevTools.
-  shellWindow.webContents.openDevTools();
+  // shellWindow.webContents.openDevTools();
 
   let s: ShellSession;
   const scnt = shellCnt;
