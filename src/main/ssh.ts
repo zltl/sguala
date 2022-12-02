@@ -1,7 +1,11 @@
-import { Client, ClientChannel } from 'ssh2';
+import { Client, ClientChannel, SFTPWrapper } from 'ssh2';
 import { ServerLogins } from './serverlogins';
 import { checkAlert } from './alertLogic';
 import { ipcMain } from 'electron';
+import { FileDesc, humanFileSize } from './FileDesc';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 export class SshFetchStats {
     srvStats = new Map<string, LinuxSession>();
@@ -17,82 +21,288 @@ export class SshFetchStats {
         s.conn = new Client();
         const chanKey = 'SHELL_CHANNEL_' + login.uuid + `/${cnt}`;
 
-        try {
-            s.conn.on('ready', async () => {
-                console.log('ssh', login.host, login.port, 'ready');
-                s.conn.shell(
-                    {
-                        env: {
-                            'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
-                            'TERM': 'xterm-256color'
+        s.conn.on('ready', async () => {
+            console.log('ssh', login.host, login.port, 'ready');
+            s.conn.shell(
+                {
+                    env: {
+                        'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
+                        'TERM': 'xterm-256color'
+                    }
+                },
+                (err, stream) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    stream.write('export TERM=xterm-256color\n');
+                    win.setSize(800, 400);
+
+                    ipcMain.on(chanKey, async (ev, data) => {
+                        if (data.op == 'data') {
+                            // console.log("get data from xterm", data.data);
+                            stream.write(data.data);
+                        } else if (data.op == 'resize') {
+                            stream.setWindow(data.rows, data.cols, '', '');
                         }
-                    },
-                    (err, stream) => {
-                        if (err) {
-                            console.log(err);
-                            return;
-                        }
-                        stream.write('export TERM=xterm-256color\n');
-                        win.setSize(800, 400);
-
-                        ipcMain.on(chanKey, async (ev, data) => {
-                            if (data.op == 'data') {
-                                // console.log("get data from xterm", data.data);
-                                stream.write(data.data);
-                            } else if (data.op == 'resize') {
-                                stream.setWindow(data.rows, data.cols, '', '');
-                            }
-                            // console.log("witten to remote");
-                        });
-
-                        stream.on('close', () => {
-                            console.log("CLOSE");
-                            try {
-                                win.send(chanKey, {
-                                    'op': "data",
-                                    'data': 'session closed',
-                                });
-                            } catch (e) {
-                                console.log("E", e);
-                            }
-                        });
-                        stream.on('data', async (data: any) => {
-                            // console.log('send to ', chanKey);
-                            try {
-                                win.send(chanKey, {
-                                    'op': "data",
-                                    "data": data,
-                                });
-                            } catch (e) {
-                                console.log("E", e);
-                            }
-                            // console.log("sended to xterm");
-                        });
-
+                        // console.log("witten to remote");
                     });
-                // TODO: shell
-            });
 
-            s.conn.on('close', async () => {
-                console.log('ssh', login.host, login.port, 'close')
-            });
+                    stream.on('close', () => {
+                        console.log("CLOSE");
+                        try {
+                            win.send(chanKey, {
+                                'op': "data",
+                                'data': 'session closed',
+                            });
+                        } catch (e) {
+                            console.log("E", e);
+                        }
+                    });
+                    stream.on('data', async (data: any) => {
+                        // console.log('send to ', chanKey);
+                        try {
+                            win.send(chanKey, {
+                                'op': "data",
+                                "data": data,
+                            });
+                        } catch (e) {
+                            console.log("E", e);
+                        }
+                        // console.log("sended to xterm");
+                    });
 
-            s.conn.on('timeout', async () => {
-                console.log('ssh', login.host, login.port, 'timeout')
-            });
+                });
+        });
 
-            const connArgs = { ...login };
-            if (connArgs.usePassword) {
-                connArgs.privateKey = undefined;
-            } else {
-                connArgs.password = undefined;
-            }
-            console.log("connecting...", JSON.stringify(connArgs));
-            s.conn.connect({ ...connArgs });
+        s.conn.on('close', async () => {
+            console.log('ssh', login.host, login.port, 'close');
+            ipcMain.removeAllListeners(chanKey);
+        });
 
-        } catch (e) {
-            console.log("E", e);
+        s.conn.on('timeout', async () => {
+            console.log('ssh', login.host, login.port, 'timeout')
+        });
+
+        const connArgs = { ...login };
+        if (connArgs.usePassword) {
+            connArgs.privateKey = undefined;
+        } else {
+            connArgs.password = undefined;
         }
+        console.log("connecting...", JSON.stringify(connArgs));
+        s.conn.connect({ ...connArgs });
+
+        return s;
+    }
+
+    startSftp(win: any, login: ServerLogins, cnt: number): ShellSession {
+        console.log('start sftp...... ', login.name);
+        const s = new ShellSession();
+        s.login = login;
+        s.conn = new Client();
+        const chanKey = 'SHELL_CHANNEL_' + login.uuid + `/${cnt}`;
+
+        s.conn.on('ready', async () => {
+            console.log('ssh', login.host, login.port, 'ready');
+            s.conn.sftp((err, sftp) => {
+                if (err) throw err;
+                s.sftp = sftp;
+
+                // TODO: try
+                // this.sftpGetFile(win, sftp, "./ota.tar.gz", "./ota.tar.gz");
+
+                ipcMain.on(chanKey, async (ev, data) => {
+                    console.log("sftp get", data)
+                    if (data.op == 'realPath') {
+                        sftp.realpath(data.data, (e, abspah) => {
+                            if (e) {
+                                console.log("ERROR: ", e);
+                                return;
+                            }
+                            win.send(chanKey, {
+                                'op': "realPath",
+                                "data": abspah,
+                            });
+                        });
+                    } else if (data.op == 'ls') {
+                        sftp.readdir(data.data, (err, list) => {
+                            if (err) throw err;
+                            // console.dir(list);
+                            const res = [];
+                            const prefDir = data.data + "/..";
+                            if (prefDir) {
+                                const finfo = new FileDesc();
+                                finfo.isDir = true;
+                                finfo.fullPath = prefDir;
+                                finfo.name = "..";
+                                finfo.size = 0;
+                                finfo.sizeStr = "0";
+                                finfo.mtime = "-";
+                                res.push(finfo);
+                            }
+                            for (let i = 0; i < list.length; i++) {
+                                const fent = list[i];
+                                const ic = new FileDesc();
+                                ic.name = fent.filename;
+                                ic.fullPath = data.data + "/" + fent.filename;
+                                ic.isDir = fent.longname.startsWith('d');
+                                ic.size = fent.attrs.size;
+                                ic.sizeStr = humanFileSize(fent.attrs.size);
+                                ic.mtime = new Date(fent.attrs.mtime * 1000).toLocaleString();
+                                res.push(ic);
+                            }
+                            win.send(chanKey, {
+                                'op': 'ls',
+                                'data': res,
+                            });
+                        });
+                    } else if (data.op == 'get') {
+                        const transferFN = async (remoteDesc: FileDesc, local: string) => {
+
+                            const localPathConc = path.join(local, remoteDesc.name);
+                            const curUUID = uuidv4();
+                            await win.send(chanKey, {
+                                'op': 'transferStart',
+                                'transferType': 'get',
+                                'remoteFullPath': remoteDesc.fullPath,
+                                'localFullPath': localPathConc,
+                                'uuid': curUUID,
+                            });
+
+                            console.log(`transfering ${JSON.stringify(remoteDesc)} to ${localPathConc} ${curUUID}`);
+                            if (remoteDesc.isDir) {
+                                await fs.promises.mkdir(localPathConc, { recursive: true });
+
+                                return new Promise((resolve, reject) => {
+                                    sftp.readdir(remoteDesc.fullPath, async (err, list) => {
+                                        if (err) {
+                                            console.log("E", err);
+                                            resolve(1);
+                                            return;
+                                        }
+                                        for (let i = 0; i < list.length; ++i) {
+                                            const fent = list[i];
+                                            const ic = new FileDesc();
+                                            ic.name = fent.filename;
+                                            ic.fullPath = remoteDesc.fullPath + "/" + fent.filename;
+                                            ic.isDir = fent.longname.startsWith('d');
+                                            ic.size = fent.attrs.size;
+                                            ic.sizeStr = humanFileSize(fent.attrs.size);
+                                            ic.mtime = new Date(fent.attrs.mtime * 1000).toLocaleString();
+
+                                            await transferFN(ic, localPathConc);
+                                        }
+                                        setTimeout(() => {
+                                            win.send(curUUID, {
+                                                'op': 'transferProgress',
+                                                'transfered': 0,
+                                                'fsize': 1,
+                                                'speed': '-',
+                                                'isEnd': true,
+                                                'remote': remoteDesc.fullPath,
+                                            });
+                                        }, 3000);
+
+                                        resolve(0);
+                                    });
+
+                                });
+                            } else {
+                                const startTS = new Date();
+                                let prevStepTs = new Date();
+                                let prevTotal = 0;
+
+                                let gtotal = 0;
+                                let gfsize = remoteDesc.size;
+                                console.log("fastGeting", JSON.stringify(remoteDesc), "to", localPathConc);
+
+                                return new Promise((resolve, reject) => {
+                                    sftp.fastGet(remoteDesc.fullPath, localPathConc, {
+                                        step: async (total: number, nb: number, fsize: number) => {
+                                            // console.log(`sftpGetFile total=${total}, nb=${nb}, fsize=${fsize}`);
+                                            const curTS = new Date();
+                                            const ms = curTS.getTime() - prevStepTs.getTime();
+                                            if (ms < 1000) {
+                                                resolve(1);
+                                                return;
+                                            }
+                                            const speed = (total - prevTotal) * 1000 / ms;
+
+                                            await win.send(curUUID, {
+                                                'op': 'transferProgress',
+                                                'transfered': total,
+                                                'fsize': fsize,
+                                                'speed': humanFileSize(speed) + '/s',
+                                                'isEnd': false,
+                                                'remote': remoteDesc.fullPath,
+                                            });
+
+                                            gtotal = total;
+                                            gfsize = fsize;
+                                            prevStepTs = curTS;
+                                            prevTotal = total;
+                                        },
+                                    }, async (e) => {
+                                        if (e) {
+                                            resolve(1);
+                                            return;
+                                        } else {
+                                            const curTS = new Date();
+                                            const ms = curTS.getTime() - startTS.getTime();
+                                            let speed = '-';
+                                            if (ms > 0) {
+                                                const numSpeed = gfsize * 1000 / ms;
+                                                speed = humanFileSize(numSpeed) + '/s';
+                                            }
+                                            setTimeout(() => {
+                                                win.send(curUUID, {
+                                                    'op': 'transferProgress',
+                                                    'transfered': gfsize,
+                                                    'fsize': gfsize,
+                                                    'speed': speed,
+                                                    'isEnd': true,
+                                                    'remote': remoteDesc.fullPath,
+                                                });
+                                            }, 3000);
+                                            console.log('transfer success', remoteDesc.fullPath);
+                                            resolve(0);
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                        await transferFN(data.remoteDesc, data.localPath);
+                    }
+                });
+
+                win.send(chanKey, {
+                    'op': 'ready'
+                });
+
+
+            });
+            // TODO: shell
+        });
+
+        s.conn.on('close', async () => {
+            console.log('ssh', login.host, login.port, 'close')
+            ipcMain.removeAllListeners(chanKey);
+        });
+
+        s.conn.on('timeout', async () => {
+            console.log('ssh', login.host, login.port, 'timeout')
+        });
+
+        const connArgs = { ...login };
+        if (connArgs.usePassword) {
+            connArgs.privateKey = undefined;
+        } else {
+            connArgs.password = undefined;
+        }
+        console.log("connecting...", JSON.stringify(connArgs));
+        s.conn.connect({ ...connArgs });
+
         return s;
     }
 
@@ -135,17 +345,17 @@ export class SshFetchStats {
         
         PrevIdle = previdle + previowait
         Idle = idle + iowait
-
+    
         PrevNonIdle = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
         NonIdle = user + nice + system + irq + softirq + steal
-
+    
         PrevTotal = PrevIdle + PrevNonIdle
         Total = Idle + NonIdle
-
+    
         # differentiate: actual value minus the previous one
         totald = Total - PrevTotal
         idled = Idle - PrevIdle
-
+    
         CPU_Percentage = (totald - idled)/totald
         */
         const user = Number(fields[1]);
@@ -193,25 +403,21 @@ export class SshFetchStats {
     }
 
     execGetStdout(s: LinuxSession, cmd: string, fn: (s: LinuxSession, data: string) => any) {
-        try {
-            s.conn.exec(cmd, { env: this.exeEnv() }, (err: any, stream: any) => {
-                let content = '';
-                if (err) {
-                    console.log('error when ', cmd, s.serverLogins.host, s.serverLogins.port);
-                    return;
-                }
-                stream.on('close', (code: number, signal: any) => {
-                    fn(s, content)
-                }).on('data', (data: string) => {
-                    // console.log('ondata...', cmd);
-                    content = content + data;
-                }).stderr.on('data', (data: string) => {
-                    console.log('stderr ', cmd, data, s.serverLogins.host, s.serverLogins.port);
-                });
+        s.conn.exec(cmd, { env: this.exeEnv() }, (err: any, stream: any) => {
+            let content = '';
+            if (err) {
+                console.log('error when ', cmd, s.serverLogins.host, s.serverLogins.port);
+                return;
+            }
+            stream.on('close', (code: number, signal: any) => {
+                fn(s, content)
+            }).on('data', (data: string) => {
+                // console.log('ondata...', cmd);
+                content = content + data;
+            }).stderr.on('data', (data: string) => {
+                console.log('stderr ', cmd, data, s.serverLogins.host, s.serverLogins.port);
             });
-        } catch (e: any) {
-            console.log('exception...', cmd);
-        }
+        });
     }
 
     getCPULoad(s: LinuxSession) {
@@ -290,106 +496,88 @@ export class SshFetchStats {
 
     getStats(s: LinuxSession) {
         // console.log('getStats', s.serverLogins.host, s.serverLogins.port);
-        try {
-            this.getCPULoad(s);
-            this.getMemInfo(s);
-            this.getDiskStat(s);
-        } catch (e) {
-            console.log("E", e);
-        }
+        this.getCPULoad(s);
+        this.getMemInfo(s);
+        this.getDiskStat(s);
     }
 
     sshConnect(s: LinuxSession) {
-        try {
-            console.log('connecting', s.serverLogins.host, s.serverLogins.port);
-            s.conn = new Client();
-            s.stat.online = OnlineStatus.CONNECTING;
-            s.conn.on('ready', async () => {
-                s.stat.online = OnlineStatus.ONLINE;
-                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
-                this.getStats(s);
-            });
+        console.log('connecting', s.serverLogins.host, s.serverLogins.port);
+        s.conn = new Client();
+        s.stat.online = OnlineStatus.CONNECTING;
+        s.conn.on('ready', async () => {
+            s.stat.online = OnlineStatus.ONLINE;
+            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
+            this.getStats(s);
+        });
 
-            s.conn.on('close', async () => {
-                s.stat.online = OnlineStatus.INIT;
-                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'close')
-            });
+        s.conn.on('close', async () => {
+            s.stat.online = OnlineStatus.INIT;
+            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'close')
+        });
 
-            s.conn.on('timeout', async () => {
-                s.stat.online = OnlineStatus.INIT;
-                console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
-            });
+        s.conn.on('timeout', async () => {
+            s.stat.online = OnlineStatus.INIT;
+            console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
+        });
 
-            const connArgs = { ...s.serverLogins };
-            if (connArgs.usePassword) {
-                connArgs.privateKey = undefined;
-            } else {
-                connArgs.password = undefined;
-            }
-            s.conn.connect({ ...connArgs });
-
-        } catch (e) {
-            console.log("E", e);
+        const connArgs = { ...s.serverLogins };
+        if (connArgs.usePassword) {
+            connArgs.privateKey = undefined;
+        } else {
+            connArgs.password = undefined;
         }
+        s.conn.connect({ ...connArgs });
     }
 
     closeServer(uuid: string) {
-        try {
-            const s = this.srvStats.get(uuid);
-            if (!s) {
-                return;
-            }
-            console.log("closeing", s.serverLogins.name);
-            s.conn && s.conn.end();
-            s.closing = true;
-            this.srvStats.delete(uuid);
-
-        } catch (e) {
-            console.log("E", e);
+        const s = this.srvStats.get(uuid);
+        if (!s) {
+            return;
         }
+        console.log("closeing", s.serverLogins.name);
+        s.conn && s.conn.end();
+        s.closing = true;
+        this.srvStats.delete(uuid);
+
     }
 
     registerServer(ss: ServerLogins) {
-        try {
-
-            console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
-            let s = this.srvStats.get(ss.uuid);
-            if (!s) {
-                s = new LinuxSession();
-                s.serverLogins = ss;
-                this.srvStats.set(ss.uuid, s);
-            }
-            this.sshConnect(s);
-
-            const fn = async (s: LinuxSession) => {
-                if (s.closing) {
-                    console.log('server', s.serverLogins.name, 'close');
-                    return;
-                }
-
-                if (s.stat.online == OnlineStatus.INIT) {
-                    this.sshConnect(s);
-                }
-
-                if (s.stat.online == OnlineStatus.ONLINE) {
-                    this.getStats(s);
-                }
-                let timeoutMiseconds = 10 * 1000;
-                if (!s.stat.cpuload) {
-                    timeoutMiseconds = 1000;
-                }
-
-                setTimeout(() => {
-                    (async () => {
-                        await fn(s);
-                    })();
-                }, timeoutMiseconds);
-            };
-
-            fn(s);
-        } catch (e) {
-            console.log("E", e);
+        console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
+        let s = this.srvStats.get(ss.uuid);
+        if (!s) {
+            s = new LinuxSession();
+            s.serverLogins = ss;
+            this.srvStats.set(ss.uuid, s);
         }
+        this.sshConnect(s);
+
+        const fn = async (s: LinuxSession) => {
+            if (s.closing) {
+                console.log('server', s.serverLogins.name, 'close');
+                return;
+            }
+
+            if (s.stat.online == OnlineStatus.INIT) {
+                this.sshConnect(s);
+            }
+
+            if (s.stat.online == OnlineStatus.ONLINE) {
+                this.getStats(s);
+            }
+            let timeoutMiseconds = 10 * 1000;
+            if (!s.stat.cpuload) {
+                timeoutMiseconds = 1000;
+            }
+
+            setTimeout(() => {
+                (async () => {
+                    await fn(s);
+                })();
+            }, timeoutMiseconds);
+        };
+
+        fn(s);
     }
 }
 
@@ -436,5 +624,6 @@ export class ShellSession {
     login: ServerLogins
     conn: Client
     stream: ClientChannel
+    sftp: SFTPWrapper
 }
 

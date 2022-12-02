@@ -21,6 +21,15 @@ export class MyTerminal extends React.Component {
         this.fitAddon = new FitAddon();
     }
 
+    componentWillUnmount() {
+        let query = queryParse(global.location.search);
+        const uuid = query['?uuid'];
+        const shellCnt = query['shellCnt'];
+        const chanKey = 'SHELL_CHANNEL_' + uuid + '/' + shellCnt;
+
+        window.ipc.clear(chanKey);
+    }
+
     componentDidMount() {
         console.log(global.location.search);
         let query = queryParse(global.location.search);
@@ -84,7 +93,6 @@ export class MyTerminal extends React.Component {
         window.document.addEventListener('dragleave', (event) => {
             console.log('File has left the Drop space');
         });
-
     }
 
 

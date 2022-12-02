@@ -17,8 +17,11 @@ import { AlertConfig } from './alertConfig';
 import { exportConfigToClipbard, mergeConfigFromClipbard } from './clipb';
 import { ServerLogins } from './serverlogins';
 import { SmtpConfig } from './smtpConfig';
+import { kvsGetCurDir, kvsSetCurDir } from './kvStore';
 
 import path from 'path';
+import fs from 'fs';
+import { FileDesc, humanFileSize } from './FileDesc';
 
 /*
 const server = 'https://update.electronjs.org'
@@ -38,6 +41,15 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 declare const SHELL_WINDOW_WEBPACK_ENTRY: string;
 declare const SHELL_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+
+declare const SFTP_WINDOW_WEBPACK_ENTRY: string;
+declare const SFTP_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+
+process.on('uncaughtException', function (error) {
+  // Handle the error
+  console.log("E", error);
+});
+
 
 const ss = new SshFetchStats();
 
@@ -120,6 +132,56 @@ const registerAllhandle = () => {
     console.log('create new window');
     createShellWindow(uuid);
   });
+
+  ipcMain.handle('sftpWindow', (event: any, uuid: string) => {
+    console.log('create new sftp window');
+    createSftpWindow(uuid);
+  });
+
+  ipcMain.handle('getCurDir', async (event: any) => {
+    return await kvsGetCurDir();
+  });
+  ipcMain.handle('setCurDir', async (event: any, dir: string) => {
+    console.log('setCUrDir', dir);
+    return await kvsSetCurDir(dir);
+  });
+
+
+  ipcMain.handle('listDir', async (event: any, dir: string): Promise<FileDesc[]> => {
+    dir = await fs.promises.realpath(dir);
+    console.log('listDir', dir);
+
+    const res = [];
+
+    const prefDir = path.join(dir, '..');
+    if (prefDir) {
+      const finfo = new FileDesc();
+      finfo.isDir = true;
+      finfo.fullPath = prefDir;
+      finfo.name = "..";
+      finfo.size = 0;
+      finfo.sizeStr = "0";
+      finfo.mtime = "-";
+      res.push(finfo);
+    }
+    const flist = await fs.promises.readdir(dir);
+    for (let i = 0; i < flist.length; i++) {
+      const finfo = new FileDesc();
+      const fname = flist[i];
+      const realFname = path.join(dir, fname);
+      const stat = await fs.promises.stat(realFname);
+
+      finfo.isDir = stat.isDirectory();
+      finfo.fullPath = realFname;
+      finfo.name = fname;
+      finfo.size = stat.size;
+      finfo.sizeStr = humanFileSize(stat.size);
+      finfo.mtime = stat.mtime.toLocaleString();
+      res.push(finfo);
+    }
+
+    return res;
+  });
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -196,6 +258,47 @@ const createShellWindow = async (uuid: string) => {
   shellCnt++;
 };
 
+const createSftpWindow = async (uuid: string) => {
+
+  const login = await getServerConfig(uuid);
+  if (!login) {
+    console.log('cannot find login info of', uuid);
+    return;
+  }
+
+  // Create the browser window.
+  const sftpWindow = new BrowserWindow({
+    height: 600,
+    width: 800,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, 'icon.ico'),
+    webPreferences: {
+      additionalArguments: ['uuid=' + uuid, `shellCnt=${shellCnt}`], // window.process.argv
+      contextIsolation: true, // must be set to true when contextBridge is enabled
+      nodeIntegrationInWorker: true, // must be set to true when contextBridge is enabled
+      preload: SFTP_WINDOW_PRELOAD_WEBPACK_ENTRY,
+    },
+  });
+  // and load the index.html of the app.
+  sftpWindow.loadURL(SFTP_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
+
+  // Open the DevTools.
+  // sftpWindow.webContents.openDevTools();
+
+  let s: ShellSession;
+  const scnt = shellCnt;
+
+  sftpWindow.on('ready-to-show', () => {
+    s = ss.startSftp(sftpWindow, login, scnt);
+  });
+
+  sftpWindow.on('close', () => {
+    s.conn.end();
+  });
+  shellCnt++;
+};
+
+
 // TODO: Uncaught TypeError: Cannot read properties of undefined (reading 'getCurrentWindow')
 app.disableHardwareAcceleration()
 
@@ -205,11 +308,10 @@ app.disableHardwareAcceleration()
 app.on('ready', createWindow);
 /*
 const createMyWindow = () => {
-  createShellWindow('d5105475-269c-4b5f-92ca-6c0ed54014e5');
+  createSftpWindow('99294c0c-e8fa-474a-8e53-1242f7ce6bd7');
 }
 app.on('ready', createMyWindow);
 */
-
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitaly with Cmd + Q.
@@ -223,8 +325,9 @@ app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    // createWindow();
     // createShellWindow('d5105475-269c-4b5f-92ca-6c0ed54014e5');
+    createSftpWindow('99294c0c-e8fa-474a-8e53-1242f7ce6bd7');
   }
 });
 

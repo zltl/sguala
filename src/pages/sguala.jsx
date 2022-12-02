@@ -49,6 +49,20 @@ export class Sguala extends React.Component {
     this.setState({ updateCardListFN: fn });
   }
 
+  componentDidMount() {
+    /*
+    if (window.process) {
+      window.process.on('uncaughtException', function (e) {
+        this.setToast({
+          id: new Date().valueOf(),
+          text: 'M异常:' + e,
+          color: 'success',
+        });
+      });
+    }
+    */
+  }
+
   render() {
     console.log("this.state.currentpage=", this.state.currentPage);
     return (< EuiPage >

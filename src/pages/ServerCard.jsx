@@ -188,13 +188,27 @@ export class ServerCard extends React.Component {
             <EuiToolTip
               content={
                 <p>
+                  远程文件传输
+                </p>
+              }
+            >
+              <EuiButtonIcon
+                iconType="crossClusterReplicationApp"
+                aria-label='start transfer remote'
+                onClick={() => { window.fs.sftpWindow(this.state.login.uuid); }}
+              />
+            </EuiToolTip>
+
+            <EuiToolTip
+              content={
+                <p>
                   远程登录
                 </p>
               }
             >
               <EuiButtonIcon
                 style={{ 'margin-right': 40 }}
-                iconType="console"
+                iconType="consoleApp"
                 aria-label='start terminal remote'
                 onClick={() => { window.rterm.shellWindow(this.state.login.uuid); }}
               />

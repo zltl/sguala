@@ -1,4 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import fs from 'fs';
+import path from 'path';
 
 contextBridge.exposeInMainWorld('myAPI', {
     desktop: true,
@@ -30,6 +32,16 @@ contextBridge.exposeInMainWorld('stat', {
     close: (uuid) => ipcRenderer.invoke('sshClose', uuid),
 });
 
+contextBridge.exposeInMainWorld('fs', {
+    getCurDir: async () => await ipcRenderer.invoke('getCurDir'),
+    setCurDir: async (dir) => await ipcRenderer.invoke('setCurDir', dir),
+    listDir: async (dir) => await ipcRenderer.invoke('listDir', dir),
+    cd: (origin, dst) => {
+        const newDir = path.join(origin, dst);
+        return newDir;
+    },
+    sftpWindow: async (uuid) => await ipcRenderer.invoke('sftpWindow', uuid),
+});
 
 contextBridge.exposeInMainWorld('rterm', {
     shellWindow: (uuid) => ipcRenderer.invoke('shellWindow', uuid),
@@ -39,5 +51,6 @@ contextBridge.exposeInMainWorld('rterm', {
 contextBridge.exposeInMainWorld('ipc', {
     'send': (chan, data) => ipcRenderer.send(chan, data),
     'on': (chan, fn) => ipcRenderer.on(chan, fn),
+    'clear': (chan) => ipcRenderer.removeAllListeners(chan), 
 });
 

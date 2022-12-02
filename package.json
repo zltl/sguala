@@ -70,6 +70,14 @@
                   "preload": {
                     "js": "./src/preload.js"
                   }
+                },
+                {
+                  "html": "./src/pages/sftp.html",
+                  "js": "./src/pages/sftp.js",
+                  "name": "sftp_window",
+                  "preload": {
+                    "js": "./src/preload.js"
+                  }
                 }
               ]
             }
