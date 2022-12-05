@@ -154,6 +154,7 @@ export class ServerCardList extends React.Component {
                         this.setState({
                             group: selectedOptions
                         });
+                        window.fs.setCurGroup(selectedOptions);
                     }}
                     renderOption={renderOption}
                 />
