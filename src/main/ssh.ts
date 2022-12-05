@@ -615,7 +615,7 @@ export class SshFetchStats {
         s.conn.on('ready', async () => {
             s.stat.online = OnlineStatus.ONLINE;
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
-            this.getStats(s);
+            // this.getStats(s);
         });
 
         s.conn.on('close', async () => {
@@ -659,6 +659,8 @@ export class SshFetchStats {
         }
         this.sshConnect(s);
 
+        let timeoutMiseconds = 1 * 1000;
+
         const fn = async (s: LinuxSession) => {
             if (s.closing) {
                 console.log('server', s.serverLogins.name, 'close');
@@ -666,13 +668,17 @@ export class SshFetchStats {
             }
 
             if (s.stat.online == OnlineStatus.INIT) {
+                timeoutMiseconds = 1000;
                 this.sshConnect(s);
             }
 
             if (s.stat.online == OnlineStatus.ONLINE) {
                 this.getStats(s);
             }
-            let timeoutMiseconds = 10 * 1000;
+            if (timeoutMiseconds < 10 * 1000) {
+                timeoutMiseconds = timeoutMiseconds + 1000;
+            }
+
             if (!s.stat.cpuload) {
                 timeoutMiseconds = 1000;
             }

@@ -41,9 +41,11 @@ export class ServerCard extends React.Component {
 
   stoping = false;
 
+  fcnt = 10;
+
   componentDidMount() {
     console.log('did mount', this.props.login.name);
-    const timeoutMs = 1 * 1000;
+    let timeoutMs = 1 * 1000;
     window.stat.connect(this.state.login);
     const fn = async () => {
       if (this.stoping) {
@@ -51,6 +53,14 @@ export class ServerCard extends React.Component {
       }
       const nstat = await window.stat.get(this.state.login.uuid);
       this.setState({ stat: nstat });
+
+      if (nstat && nstat.cpuloa && this.fcnt > 0) {
+        this.fcnt--;
+      }
+      if (this.fcnt <= 0) {
+        timeoutMs = 30 * 1000;
+      }
+
       setTimeout(fn, timeoutMs);
     };
     setTimeout(fn, timeoutMs);
