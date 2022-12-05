@@ -223,7 +223,7 @@ export class SshFetchStats {
                                             // console.log(`sftpGetFile total=${total}, nb=${nb}, fsize=${fsize}`);
                                             const curTS = new Date();
                                             const ms = curTS.getTime() - prevStepTs.getTime();
-                                            if (ms < 1000) {
+                                            if (ms < 100) {
                                                 resolve(1);
                                                 return;
                                             }
@@ -273,6 +273,113 @@ export class SshFetchStats {
                             }
                         }
                         await transferFN(data.remoteDesc, data.localPath);
+                    } else if (data.op == 'put') {
+                        const putFN = async (localDesc: FileDesc, remotePath: string) => {
+                            const remotePathConc = remotePath + '/' + localDesc.name;
+                            const curUUID = uuidv4();
+                            await win.send(chanKey, {
+                                'op': 'transferStart',
+                                'transferType': 'put',
+                                'remoteFullPath': remotePathConc,
+                                'localFullPath': localDesc.fullPath,
+                                'uuid': curUUID,
+                            });
+
+                            console.log(`puting ${JSON.stringify(localDesc)} to ${remotePath} ${curUUID}`);
+                            if (localDesc.isDir) {
+                                await new Promise((resolve, reject) => {
+                                    sftp.mkdir(remotePath, (e) => resolve(e));
+                                });
+                                const flist = await fs.promises.readdir(localDesc.fullPath);
+                                for (let i = 0; i < flist.length; i++) {
+                                    const finfo = new FileDesc();
+                                    const fname = flist[i];
+                                    const realFname = path.join(localDesc.fullPath, fname);
+                                    const stat = await fs.promises.stat(realFname);
+
+                                    finfo.isDir = stat.isDirectory();
+                                    finfo.fullPath = realFname;
+                                    finfo.name = fname;
+                                    finfo.size = stat.size;
+                                    finfo.sizeStr = humanFileSize(stat.size);
+                                    finfo.mtime = stat.mtime.toLocaleString();
+
+                                    await putFN(finfo, remotePathConc);
+                                }
+                                setTimeout(() => {
+                                    win.send(curUUID, {
+                                        'op': 'transferProgress',
+                                        'transfered': 0,
+                                        'fsize': 1,
+                                        'speed': '-',
+                                        'isEnd': true,
+                                        'remote': remotePathConc,
+                                    });
+                                }, 3000);
+                            } else {
+                                return new Promise((resolve, reject) => {
+                                    const startTS = new Date();
+                                    let prevStepTs = new Date();
+                                    let prevTotal = 0;
+
+                                    let gtotal = 0;
+                                    let gfsize = localDesc.size;
+                                    console.log("fastPuting", JSON.stringify(localDesc), "to", remotePathConc)
+                                    sftp.fastPut(localDesc.fullPath, remotePathConc, {
+                                        step: async (total: number, nb: number, fsize: number) => {
+                                            // console.log(`sftpGetFile total=${total}, nb=${nb}, fsize=${fsize}`);
+                                            const curTS = new Date();
+                                            const ms = curTS.getTime() - prevStepTs.getTime();
+                                            if (ms < 100) {
+                                                resolve(1);
+                                                return;
+                                            }
+                                            const speed = (total - prevTotal) * 1000 / ms;
+
+                                            await win.send(curUUID, {
+                                                'op': 'transferProgress',
+                                                'transfered': total,
+                                                'fsize': fsize,
+                                                'speed': humanFileSize(speed) + '/s',
+                                                'isEnd': false,
+                                                'remote': remotePathConc,
+                                            });
+
+                                            gtotal = total;
+                                            gfsize = fsize;
+                                            prevStepTs = curTS;
+                                            prevTotal = total;
+                                        },
+                                    }, async (e) => {
+                                        if (e) {
+                                            resolve(1);
+                                            return;
+                                        } else {
+                                            const curTS = new Date();
+                                            const ms = curTS.getTime() - startTS.getTime();
+                                            let speed = '-';
+                                            if (ms > 0) {
+                                                const numSpeed = gfsize * 1000 / ms;
+                                                speed = humanFileSize(numSpeed) + '/s';
+                                            }
+                                            setTimeout(() => {
+                                                win.send(curUUID, {
+                                                    'op': 'transferProgress',
+                                                    'transfered': gfsize,
+                                                    'fsize': gfsize,
+                                                    'speed': speed,
+                                                    'isEnd': true,
+                                                    'remote': remotePathConc,
+                                                });
+                                            }, 3000);
+                                            console.log('transfer success', remotePathConc);
+                                            resolve(0);
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                        await putFN(data.localDesc, data.remotePath);
                     }
                 });
 
@@ -345,17 +452,17 @@ export class SshFetchStats {
         
         PrevIdle = previdle + previowait
         Idle = idle + iowait
-    
+     
         PrevNonIdle = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
         NonIdle = user + nice + system + irq + softirq + steal
-    
+     
         PrevTotal = PrevIdle + PrevNonIdle
         Total = Idle + NonIdle
-    
+     
         # differentiate: actual value minus the previous one
         totald = Total - PrevTotal
         idled = Idle - PrevIdle
-    
+     
         CPU_Percentage = (totald - idled)/totald
         */
         const user = Number(fields[1]);

@@ -15,6 +15,8 @@ import {
     EuiDroppable,
     euiTheme,
     EuiLink,
+    EuiProgress,
+    EuiButtonIcon,
 } from '@elastic/eui';
 import { parse as queryParse } from 'querystring';
 import { SftpTransferProgress } from './SftpTransferProgress';
@@ -35,6 +37,9 @@ export function SftpTransferPage(props) {
 
     const [remoteCurDir, setRemoteCurDir] = useState('.');
     const [remoteFileList, setRemoteFileList] = useState([]);
+
+    const [localCurLoading, setLocalCurLoading] = useState(false);
+    const [remoteCurLoading, setRemoteCurLoading] = useState(false);
 
     const [transferList, setTransferList] = useState([]);
 
@@ -70,6 +75,16 @@ export function SftpTransferPage(props) {
         return;
     }
 
+    const putRemoteFile = async (remote, local) => {
+        window.ipc.send(chanKey, {
+            'op': 'put',
+            'localDesc': local,
+            'remotePath': remote,
+        })
+        return;
+    }
+
+
     const updateFileList = async () => {
         const flist = await window.fs.listDir(localCurDir);
         console.log("flist", flist);
@@ -87,6 +102,9 @@ export function SftpTransferPage(props) {
                 }
                 case 'ls': {
                     setRemoteFileList(data.data);
+                    setTimeout(() => {
+                        setRemoteCurLoading(false);
+                    }, 1000);
                     break;
                 }
                 case 'ready': {
@@ -121,12 +139,17 @@ export function SftpTransferPage(props) {
 
 
     const tryUpdateCur = async () => {
+        setLocalCurLoading(true);
         await window.fs.setCurDir(localCurDir);
         await getCurDir();
         await updateFileList();
+        setTimeout(() => {
+            setLocalCurLoading(false);
+        }, 1000);
     }
 
     const tryUpdateRemoteCur = async () => {
+        setRemoteCurLoading(true);
         getRemoteCurDir();
     }
 
@@ -140,7 +163,11 @@ export function SftpTransferPage(props) {
             return;
         }
 
-        // source.index
+        if (source.name == '..') {
+            console.log('error transfer ..');
+            return;
+        }
+
         if (source.droppableId == 'REMOTE_D_AREA') {
             const fromDesc = remoteFileList[source.index];
             const destPath = localCurDir;
@@ -148,12 +175,17 @@ export function SftpTransferPage(props) {
 
             console.log("from: ", fromDesc, 'to', destPath);
             getRemoteFile(destPath, fromDesc);
+        } else if (source.droppableId == 'LOCAL_D_AREA') {
+            const fromDesc = fileList[source.index];
+            const destPath = remoteCurDir;
+            console.log("from: ", fromDesc, 'to', destPath);
+            putRemoteFile(destPath, fromDesc);
         }
     };
 
     const pgList = transferList.map((elem) => {
         return (
-            <div key={elem.uuid} style={{marginBottom:"0.3em"}}>
+            <div key={elem.uuid} style={{ marginBottom: "0.3em" }}>
                 <SftpTransferProgress
                     msg={elem}
                 />
@@ -196,7 +228,15 @@ export function SftpTransferPage(props) {
                                                         onChange={(e) => setLocalCurDir(e.target.value)}
                                                         onBlur={tryUpdateCur}
                                                         aria-label="current dir"
+                                                        append={
+                                                            <EuiButtonIcon
+                                                                iconType="refresh"
+                                                                onClick={tryUpdateCur} />
+                                                        }
                                                     />
+                                                    {localCurLoading && <EuiProgress
+                                                        size="xs"
+                                                        color="accent" />}
 
                                                     <div
                                                         style={{ height: '100%', overflow: 'auto' }}
@@ -207,7 +247,6 @@ export function SftpTransferPage(props) {
                                                                 key={finfo.fullPath}
                                                                 index={idx}
                                                                 draggableId={"l:" + finfo.fullPath}
-                                                                isDragDisabled={finfo.name == '..'}
                                                             >
                                                                 {(provided, state) => {
                                                                     if (finfo.isDir) {
@@ -257,7 +296,15 @@ export function SftpTransferPage(props) {
                                                         onChange={(e) => setRemoteCurDir(e.target.value)}
                                                         onBlur={tryUpdateRemoteCur}
                                                         aria-label="remote current dir"
+                                                        append={
+                                                            <EuiButtonIcon
+                                                                iconType="refresh"
+                                                                onClick={tryUpdateRemoteCur} />
+                                                        }
                                                     />
+                                                    {remoteCurLoading && <EuiProgress
+                                                        size="xs"
+                                                        color="accent" />}
 
 
                                                     <div
