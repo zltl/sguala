@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('config', {
     exportClipboard: async () => await ipcRenderer.invoke('exportClipboard'),
     importClipboard: async () => await ipcRenderer.invoke('importClipboard'),
 
+    importFile: async () => await ipcRenderer.invoke('importFile'),
+    exportFile: async () => await ipcRenderer.invoke('exportFile'),
+
     configMoveFront: async (uuid) => await ipcRenderer.invoke('configMoveFront', uuid),
 });
 

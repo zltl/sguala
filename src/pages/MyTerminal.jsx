@@ -81,18 +81,12 @@ export class MyTerminal extends React.Component {
             for (const f of event.dataTransfer.files) {
                 console.log('File Path of dragged files:', f.path);
             }
-            this.setState({ maskOpen: true })
         });
         window.document.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
         });
-        window.document.addEventListener('dragenter', (event) => {
-            console.log('File is in the Drop space');
-        });
-        window.document.addEventListener('dragleave', (event) => {
-            console.log('File has left the Drop space');
-        });
+
     }
 
 
@@ -101,13 +95,6 @@ export class MyTerminal extends React.Component {
         return (
             <>
                 <div id="xterm" style={{ margin: 0, height: '100%' }} ref={c => this.XtermDiv = c} />
-                {this.state.maskOpen && <EuiOverlayMask>
-                    <EuiFocusTrap>
-                        <EuiPanel>
-                            <h1>还不行</h1>
-                        </EuiPanel>
-                    </EuiFocusTrap>
-                </EuiOverlayMask>}
             </>
         );
     }

@@ -82,7 +82,7 @@ export class Sguala extends React.Component {
                 position="export"
                 content={
                   <p>
-                    导出服务器列表到粘贴板
+                    导出服务器配置
                   </p>
                 }
               >
@@ -91,11 +91,11 @@ export class Sguala extends React.Component {
                   aria-label='export config to clipboard'
                   size="m"
                   onClick={async () => {
-                    await window.config.exportClipboard();
+                    await window.config.exportFile();
                     this.setToast(
                       {
                         id: new Date().valueOf(),
-                        text: '已经导出到粘贴板',
+                        text: '导出配置文件',
                         color: 'success',
                       }
                     );
@@ -106,20 +106,20 @@ export class Sguala extends React.Component {
                 position="import"
                 content={
                   <p>
-                    从粘贴板导入服务器列表
+                    导入服务器配置
                   </p>
                 }
               >
                 <EuiButtonIcon iconType="importAction"
-                  aria-label='import config to clipboard'
+                  aria-label='import config '
                   size="m"
                   onClick={async () => {
-                    const e = await window.config.importClipboard();
+                    await window.config.importFile();
                     this.setToast(
                       {
                         id: new Date().valueOf(),
-                        text: e ? e : '导入成功',
-                        color: e ? 'danger' : 'success',
+                        text: '导入配置文件',
+                        color: 'success',
                       }
                     );
                     await this.state.updateCardListFN();

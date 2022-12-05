@@ -1,5 +1,5 @@
 
-import { app } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import { VersionStr } from './version';
 import { promises as fs } from "fs"
 import { ServerLogins } from './serverlogins';
@@ -68,7 +68,7 @@ export async function loadConfig(): Promise<Config> {
 
 export async function storeConfig(config: Config) {
     const configFilePath = getConfigFilePath();
-    const content = JSON.stringify(config);
+    const content = JSON.stringify(config, null, 2);
     console.log('writing config to ', configFilePath);
     await fs.writeFile(configFilePath, content, 'utf8');
 }
@@ -119,8 +119,8 @@ export async function moveFront(uuid: string) {
             if (i == 0) {
                 return;
             }
-            const tmp = config.servers[i-1];
-            config.servers[i-1] = config.servers[i];
+            const tmp = config.servers[i - 1];
+            config.servers[i - 1] = config.servers[i];
             config.servers[i] = tmp;
             await storeConfig(config);
             return;
@@ -179,5 +179,93 @@ export async function putAlertConfig(arg: AlertConfig) {
         config.alerts.push(arg);
     }
     await storeConfig(config);
+}
+
+export async function mergeConfigOpen() {
+    const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [
+            { name: 'Json', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] },
+        ],
+        title: '导入配置文件',
+    });
+    if (result.canceled) {
+        return;
+    }
+    result.filePaths.forEach(async (fname) => {
+        console.log('loading config file', fname);
+        const content = await fs.readFile(fname, 'utf8');
+        mergeConfig(content);
+    });
+}
+
+export async function exportConfigOpen() {
+    const pwd = await fs.realpath('.');
+    const result = await dialog.showSaveDialog({
+        title: '选择导出配置文件位置',
+        defaultPath: path.join(pwd, './sguala-config.json'),
+        properties: ['showHiddenFiles']
+    });
+    if (result.canceled) {
+        return;
+    }
+    let targetPath = result.filePath;
+    try {
+        const tartgetStat = await fs.stat(targetPath);
+        if (tartgetStat.isDirectory()) {
+            targetPath = path.join(targetPath, 'sguala-config.json');
+        }
+    } catch {
+        console.log('not exists, may create');
+    }
+    const config = await loadConfig();
+    const content = JSON.stringify(config, null, 2);
+    console.log('writing config to ', targetPath);
+    await fs.writeFile(targetPath, content, 'utf8');
+}
+
+
+export async function mergeConfig(newText: string): Promise<string> {
+    const clipText = newText;
+    const clipObj = JSON.parse(clipText);
+    const config = await loadConfig();
+    try {
+        for (let i = 0; i < clipObj.servers.length; i++) {
+            let found = false;
+            const cs = clipObj.servers[i];
+            for (let j = 0; j < config.servers.length; j++) {
+                const ss = config.servers[j];
+                if (cs.uuid == ss.uuid) {
+                    found = true;
+                    config.servers[j] = cs;
+                }
+            }
+            if (!found) {
+                config.servers.push(cs);
+            }
+        }
+        for (let i = 0; i < clipObj.alerts.length; i++) {
+            let found = false;
+            const cs = clipObj.servers[i];
+            if (cs.uuid == "0") {
+                continue;
+            }
+            for (let j = 0; j < config.alerts.length; j++) {
+                const ss = config.alerts[j];
+                if (cs.uuid == ss.uuid) {
+                    found = true;
+                    config.alerts[j] = cs;
+                }
+            }
+            if (!found) {
+                config.alerts.push(cs);
+            }
+        }
+        await storeConfig(config);
+    } catch (e) {
+        console.log("e merge Config", e);
+        return String(e);
+    }
 }
 

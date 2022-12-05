@@ -12,9 +12,13 @@ import {
   getSmtpConfig,
   putSmtpConfig,
   moveFront,
+  mergeConfigOpen,
+  exportConfigOpen,
 } from './conf';
 import { AlertConfig } from './alertConfig';
-import { exportConfigToClipbard, mergeConfigFromClipbard } from './clipb';
+import {
+  exportConfigToClipbard, mergeConfigFromClipbard
+} from './clipb';
 import { ServerLogins } from './serverlogins';
 import { SmtpConfig } from './smtpConfig';
 import { kvsGetCurDir, kvsSetCurDir } from './kvStore';
@@ -114,6 +118,15 @@ const registerAllhandle = () => {
     console.log("exportClipboard...");
     await mergeConfigFromClipbard();
   });
+  ipcMain.handle('importFile', async (event: any) => {
+    console.log("importFile...");
+    await mergeConfigOpen();
+  });
+  ipcMain.handle('exportFile', async (event: any) => {
+    console.log("exportFile...");
+    await exportConfigOpen();
+  });
+
 
   ipcMain.handle('getStat', async (event: any, uuid: string) => {
     // console.log('getStat', uuid);
