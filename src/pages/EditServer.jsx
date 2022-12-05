@@ -21,7 +21,7 @@ export function EditServer(props) {
   const [serverPassword, setServerPassword] = useState(props.password);
   const [serverKey, setServerKey] = useState(props.privateKey);
 
-  const [group, setGroup] = useState(props.groupo);
+  const [group, setGroup] = useState(props.group);
 
   const submitFN = async () => {
     props.closePopover();
