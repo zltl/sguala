@@ -8,6 +8,7 @@ import {
   EuiPopover,
   EuiToolTip,
   RIGHT_ALIGNMENT,
+  EuiHealth,
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
@@ -34,6 +35,7 @@ export class ServerCard extends React.Component {
       isEditOpen: false,
       updateCardList: props.updateCardList,
       isFirst: props.isFirst,
+      color: props.color,
     };
   }
 
@@ -106,6 +108,13 @@ export class ServerCard extends React.Component {
         }
         description={
           <>
+            <div>
+              {this.state.color &&
+                <EuiHealth color={this.state.color}>
+                  {this.state.login.group}
+                </EuiHealth>}
+            </div>
+
             <EuiPopover
               panelStyle={{ minWidth: 400 }}
               button={

@@ -8,4 +8,5 @@ export class ServerLogins {
     privateKey: string
     password: string
     usePassword: boolean
+    group: string
 }

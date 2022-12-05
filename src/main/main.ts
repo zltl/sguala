@@ -21,7 +21,7 @@ import {
 } from './clipb';
 import { ServerLogins } from './serverlogins';
 import { SmtpConfig } from './smtpConfig';
-import { kvsGetCurDir, kvsSetCurDir } from './kvStore';
+import { kvsGetCurDir, kvsGetCurGroup, kvsSetCurDir, kvsSetCurGroup } from './kvStore';
 
 import path from 'path';
 import fs from 'fs';
@@ -159,6 +159,13 @@ const registerAllhandle = () => {
     return await kvsSetCurDir(dir);
   });
 
+  ipcMain.handle('getCurGroup', async (event: any): Promise<any> => {
+    return await kvsGetCurGroup();
+  });
+  ipcMain.handle('setCurGroup', async (event: any, g: any) => {
+    console.log('setCurGroup', g);
+    return await kvsSetCurGroup(g);
+  });
 
   ipcMain.handle('listDir', async (event: any, dir: string): Promise<FileDesc[]> => {
     dir = await fs.promises.realpath(dir);
@@ -224,7 +231,7 @@ const createWindow = async () => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 };
 
 let shellCnt = 0;

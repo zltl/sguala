@@ -8,6 +8,7 @@ import path from 'path';
 
 export class KVS {
     curDir: string
+    curGroup: []
 }
 
 function getKvFilePath(): string {
@@ -55,5 +56,16 @@ export async function kvsSetCurDir(dir: string) {
     }
 }
 
-
-
+export async function kvsGetCurGroup(): Promise<[]> {
+    const kvs = await loadKv();
+    return kvs.curGroup;
+}
+export async function kvsSetCurGroup(groups: []) {
+    try {
+        const kvs = await loadKv();
+        kvs.curGroup = groups;
+        await storeKv(kvs);
+    } catch (e) {
+        console.log("not store ", e);
+    }
+}

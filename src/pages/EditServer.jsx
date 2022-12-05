@@ -21,6 +21,8 @@ export function EditServer(props) {
   const [serverPassword, setServerPassword] = useState(props.password);
   const [serverKey, setServerKey] = useState(props.privateKey);
 
+  const [group, setGroup] = useState(props.groupo);
+
   const submitFN = async () => {
     props.closePopover();
     console.log("... CLOSE POP UP")
@@ -33,6 +35,7 @@ export function EditServer(props) {
       username: serverUsername,
       privateKey: serverKey,
       usePassword: usePassword,
+      group: group,
     });
     await props.updateCardList();
   };
@@ -46,6 +49,15 @@ export function EditServer(props) {
           onChange={(e) => setServerName(e.target.value)}
         />
       </EuiFormRow>
+      
+      <EuiFormRow
+        label="分组">
+        <EuiFieldText
+          placeholder="分组名称"
+          value={group}
+          onChange={(e) => setGroup(e.target.value)} />
+      </EuiFormRow>
+
       <EuiFormRow label="服务器地址">
         <EuiFieldText
           placeholder="IP 地址或域名"
@@ -92,6 +104,7 @@ export function EditServer(props) {
           />
         }
       </EuiFormRow>
+
 
       <EuiButton
         type='submit'

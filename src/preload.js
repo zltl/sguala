@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('stat', {
 contextBridge.exposeInMainWorld('fs', {
     getCurDir: async () => await ipcRenderer.invoke('getCurDir'),
     setCurDir: async (dir) => await ipcRenderer.invoke('setCurDir', dir),
+    getCurGroup: async () => await ipcRenderer.invoke('getCurGroup'),
+    setCurGroup: async (g) => await ipcRenderer.invoke('setCurGroup', g),
+
     listDir: async (dir) => await ipcRenderer.invoke('listDir', dir),
     cd: (origin, dst) => {
         const newDir = path.join(origin, dst);
