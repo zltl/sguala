@@ -238,7 +238,7 @@ export class ServerCard extends React.Component {
               position="top"
               content={
                 <p>
-                  删除服务器
+                  删除服务器卡片
                 </p>
               }
             >

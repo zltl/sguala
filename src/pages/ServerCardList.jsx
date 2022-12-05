@@ -35,9 +35,12 @@ export class ServerCardList extends React.Component {
         if (!curGroup) {
             curGroup = [];
         }
-
-        const groupList = [];
         let grcnt = 0;
+
+        const color = visColorsBehindText[grcnt++];
+        const groupList = [{
+            label: '所有', color: color, size: configs.servers.length,
+        }];
         let servers = configs.servers;
         for (let j = 0; j < servers.length; j++) {
             const v = servers[j];
@@ -73,13 +76,8 @@ export class ServerCardList extends React.Component {
     }
 
     render() {
-        let first = true;
 
         const itemFN = (item) => {
-            let isFirst = first;
-            if (first) {
-                first = false;
-            }
             let dotColor;
             if (item.color) {
                 dotColor = visColors[visColorsBehindText.indexOf(item.color)];
@@ -88,7 +86,7 @@ export class ServerCardList extends React.Component {
                 <EuiFlexItem key={JSON.stringify(item)}>
                     <ServerCard
                         color={dotColor}
-                        isFirst={isFirst}
+                        isFirst={false}
                         login={item}
                         updateCardList={async () => {
                             await this.loadConfig();
@@ -108,10 +106,14 @@ export class ServerCardList extends React.Component {
             return false;
         }
 
-        if (!this.state.group || this.state.group.length == 0 ||
-            anyLabelHas(this.state.group, '所有')) {
-
-            srvs = this.state.servers.map(itemFN);
+        console.log(this.state.group, '++++++++++++++++++++++++')
+        if (anyLabelHas(this.state.group, '所有')) {
+            srvs = this.state.servers.map((item) => {
+                itemFN(item);
+            });
+            this.state.servers.forEach((item) => {
+                srvs.push(itemFN(item));
+            });
         } else {
             console.log('for each ', this.state.group);
             for (let i = 0; i < this.state.group.length; i++) {
@@ -122,7 +124,6 @@ export class ServerCardList extends React.Component {
                         srvs.push(itemFN(item));
                     }
                 });
-
             }
         }
 
