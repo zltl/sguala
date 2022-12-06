@@ -9,4 +9,5 @@ export class ServerLogins {
     password: string
     usePassword: boolean
     group: string
+    updateTime: string
 }

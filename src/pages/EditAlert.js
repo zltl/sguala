@@ -94,6 +94,7 @@ export function EditAlert(props) {
             upAlertForValue: upAlertForValue,
             mailInterval: mailInterval,
 
+            updateTime: new Date(),
         });
     };
 

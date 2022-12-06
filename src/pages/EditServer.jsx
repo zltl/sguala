@@ -36,6 +36,7 @@ export function EditServer(props) {
       privateKey: serverKey,
       usePassword: usePassword,
       group: group,
+      updateTime: new Date().toISOString(),
     });
     await props.updateCardList();
   };
@@ -49,7 +50,7 @@ export function EditServer(props) {
           onChange={(e) => setServerName(e.target.value)}
         />
       </EuiFormRow>
-      
+
       <EuiFormRow
         label="分组">
         <EuiFieldText
@@ -108,9 +109,9 @@ export function EditServer(props) {
 
       <EuiButton
         type='submit'
-        onClick={async (e) => {
+        onClick={(e) => {
           e.preventDefault();
-          await submitFN()
+          submitFN()
         }}>
         保存
       </EuiButton>

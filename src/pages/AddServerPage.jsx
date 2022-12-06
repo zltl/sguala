@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
-  EuiPopover,
-  EuiPopoverTitle,
   EuiButtonIcon,
   EuiToolTip,
+  EuiModal,
+  EuiModalHeader,
+  EuiModalBody,
+  EuiModalHeaderTitle,
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
@@ -15,14 +17,10 @@ export class AddSrvProps {
 
 export function AddServerPage(props) {
 
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-
-  const onButtonClick = () =>
-    setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
-  const closePopover = () => setIsPopoverOpen(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   return (
-    <EuiPopover button={
+    <>
       <EuiToolTip
         position="top"
         content={
@@ -34,16 +32,23 @@ export function AddServerPage(props) {
         <EuiButtonIcon iconType="plusInCircleFilled"
           aria-label='open add server form'
           size="m"
-          onClick={onButtonClick} />
+          onClick={() => setIsModalVisible(true)} />
       </EuiToolTip>
-    }
-      panelStyle={{ minWidth: 400 }}
-      isOpen={isPopoverOpen}
-      closePopover={closePopover} >
-      <EuiPopoverTitle>添加服务器</EuiPopoverTitle>
-      <EditServer updateCardList={async () => await props.updateCardList()}
-        closePopover={() => setIsPopoverOpen(false)} />
-    </EuiPopover>
+      {
+        isModalVisible &&
+        <EuiModal onClose={() => setIsModalVisible(false)}>
+          <EuiModalHeader>
+            <EuiModalHeaderTitle>
+              <h1>添加服务器</h1>
+            </EuiModalHeaderTitle>
+          </EuiModalHeader>
+          <EuiModalBody>
+            <EditServer updateCardList={async () => await props.updateCardList()}
+              closePopover={() => setIsModalVisible(false)} />
+          </EuiModalBody>
+        </EuiModal>
+      }
+    </>
   );
 }
 

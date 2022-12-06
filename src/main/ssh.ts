@@ -513,7 +513,7 @@ export class SshFetchStats {
         s.conn.exec(cmd, { env: this.exeEnv() }, (err: any, stream: any) => {
             let content = '';
             if (err) {
-                console.log('error when ', cmd, s.serverLogins.host, s.serverLogins.port);
+                console.log('error when ', cmd, s.serverLogins.host, s.serverLogins.port, err);
                 return;
             }
             stream.on('close', (code: number, signal: any) => {

@@ -7,8 +7,12 @@ import {
   EuiPopoverTitle,
   EuiPopover,
   EuiToolTip,
-  RIGHT_ALIGNMENT,
   EuiHealth,
+  EuiModal,
+  EuiModalHeader,
+  EuiModalBody,
+  EuiModalHeaderTitle,
+
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
@@ -125,84 +129,78 @@ export class ServerCard extends React.Component {
                 </EuiHealth>}
             </div>
 
-            <EuiPopover
-              panelStyle={{ minWidth: 400 }}
-              button={
-                <EuiToolTip
-                  position="top"
-                  content={
-                    <p>
-                      移动到前面
-                    </p>
-                  }
-                >
-                  <EuiButtonIcon
-                    isDisabled={this.state.isFirst}
-                    iconType="sortLeft"
-                    aria-label='move card up'
-                    onClick={() => { this.moveFront() }}
-                  />
-                </EuiToolTip>
+            <EuiToolTip
+              position="top"
+              content={
+                <p>
+                  移动到前面
+                </p>
               }
-              isOpen={this.state.isEditOpen}
-              closePopover={() => this.setIsEditOpen(false)}
             >
-            </EuiPopover>
+              <EuiButtonIcon
+                isDisabled={this.state.isFirst}
+                iconType="sortLeft"
+                aria-label='move card up'
+                onClick={() => { this.moveFront() }}
+              />
+            </EuiToolTip>
 
 
-            <EuiPopover
-              panelStyle={{ minWidth: 400 }}
-              button={
-                <EuiToolTip
-                  position="top"
-                  content={
-                    <p>
-                      编辑服务器登录信息
-                    </p>
-                  }
-                >
-                  <EuiButtonIcon
-                    iconType="documentEdit"
-                    aria-label='edit server login info'
-                    onClick={() => this.setIsEditOpen(!this.state.isEditOpen)}
-                  />
-                </EuiToolTip>
-              }
-              isOpen={this.state.isEditOpen}
-              closePopover={() => this.setIsEditOpen(false)}
-            >
-              <EuiPopoverTitle>修改服务器</EuiPopoverTitle>
-              <EditServer {...this.state.login}
-                closePopover={() => this.setIsEditOpen(false)}
-                updateCardList={async () => await this.props.updateCardList()} />
-            </EuiPopover>
+            <>
+              <EuiToolTip
+                position="top"
+                content={<p>编辑服务器信息</p>}>
+                <EuiButtonIcon
+                  iconType="documentEdit"
+                  aria-label='edit server login info'
+                  onClick={() => this.setIsEditOpen(true)}
+                />
+              </EuiToolTip>
 
-            <EuiPopover
-              panelStyle={{ minWidth: 400 }}
-              button={
-                <EuiToolTip
-                  position="top"
-                  content={
-                    <p>
-                      编辑告警
-                    </p>
-                  }
-                >
-                  <EuiButtonIcon
-                    iconType="alert"
-                    aria-label='edit server alert info'
-                    onClick={() => this.setIsAlertEditOpen(!this.state.isAlertEditOpen)}
-                  />
-                </EuiToolTip>
-              }
-              isOpen={this.state.isAlertEditOpen}
-              closePopover={() => this.setIsAlertEditOpen(false)}
-            >
-              <EuiPopoverTitle>编辑告警</EuiPopoverTitle>
-              <EditAlert
-                uuid={this.state.login.uuid}
-                closePopover={() => this.setIsAlertEditOpen(false)} />
-            </EuiPopover>
+              {this.state.isEditOpen &&
+                <EuiModal onClose={() => this.setIsEditOpen(false)}>
+                  <EuiModalHeader>
+                    <EuiModalHeaderTitle>
+                      <h1>修改服务器信息</h1>
+                    </EuiModalHeaderTitle>
+                  </EuiModalHeader>
+                  <EuiModalBody>
+                    <EditServer {...this.state.login}
+                      updateCardList={() => this.props.updateCardList()}
+                      closePopover={() => { this.setIsEditOpen(false); }} />
+                  </EuiModalBody>
+                </EuiModal>}
+            </>
+
+
+            <>
+              <EuiToolTip
+                position="top"
+                content={
+                  <p>
+                    编辑告警
+                  </p>
+                }>
+                <EuiButtonIcon
+                  iconType="alert"
+                  aria-label='edit server alert info'
+                  onClick={() => this.setIsAlertEditOpen(!this.state.isAlertEditOpen)} />
+              </EuiToolTip>
+
+              {this.state.isAlertEditOpen &&
+                <EuiModal onClose={() => this.setIsAlertEditOpen(false)}>
+                  <EuiModalHeader>
+                    <EuiModalHeaderTitle>
+                      <h1>编辑告警</h1>
+                    </EuiModalHeaderTitle>
+                  </EuiModalHeader>
+                  <EuiModalBody>
+                    <EditAlert
+                      uuid={this.state.login.uuid}
+                      closePopover={() => this.setIsAlertEditOpen(false)} />
+                  </EuiModalBody>
+                </EuiModal>}
+            </>
 
             <EuiToolTip
               content={
@@ -226,7 +224,7 @@ export class ServerCard extends React.Component {
               }
             >
               <EuiButtonIcon
-                style={{ 'margin-right': 40 }}
+                style={{ marginRight: 40 }}
                 iconType="consoleApp"
                 aria-label='start terminal remote'
                 onClick={() => { window.rterm.shellWindow(this.state.login.uuid); }}

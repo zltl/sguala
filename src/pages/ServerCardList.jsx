@@ -83,7 +83,7 @@ export class ServerCardList extends React.Component {
                 dotColor = visColors[visColorsBehindText.indexOf(item.color)];
             }
             return (
-                <EuiFlexItem key={JSON.stringify(item)}>
+                <EuiFlexItem key={item.uuid + item.updateTime}>
                     <ServerCard
                         color={dotColor}
                         isFirst={false}
@@ -106,7 +106,6 @@ export class ServerCardList extends React.Component {
             return false;
         }
 
-        console.log(this.state.group, '++++++++++++++++++++++++')
         if (anyLabelHas(this.state.group, '所有')) {
             srvs = this.state.servers.map((item) => {
                 itemFN(item);
@@ -115,7 +114,6 @@ export class ServerCardList extends React.Component {
                 srvs.push(itemFN(item));
             });
         } else {
-            console.log('for each ', this.state.group);
             for (let i = 0; i < this.state.group.length; i++) {
                 const gs = this.state.group[i];
                 const label = gs.label;

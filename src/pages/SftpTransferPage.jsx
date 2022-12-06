@@ -230,6 +230,7 @@ export function SftpTransferPage(props) {
                                                         aria-label="current dir"
                                                         append={
                                                             <EuiButtonIcon
+                                                                aria-label='refresh local dir'
                                                                 iconType="refresh"
                                                                 onClick={tryUpdateCur} />
                                                         }
@@ -298,6 +299,7 @@ export function SftpTransferPage(props) {
                                                         aria-label="remote current dir"
                                                         append={
                                                             <EuiButtonIcon
+                                                                aria-label='refresh remote dir'
                                                                 iconType="refresh"
                                                                 onClick={tryUpdateRemoteCur} />
                                                         }
