@@ -127,16 +127,6 @@ const registerAllhandle = () => {
     await exportConfigOpen();
   });
 
-
-  ipcMain.handle('getStat', async (event: any, uuid: string) => {
-    // console.log('getStat', uuid);
-    return ss.getStat(uuid);
-  });
-
-  ipcMain.handle('sshConnect', (event: any, arg: any) => {
-    ss.registerServer(arg);
-  });
-
   ipcMain.handle('sshClose', (event: any, uuid: string) => {
     ss.closeServer(uuid);
   });
@@ -227,6 +217,11 @@ const createWindow = async () => {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
   });
+
+  ipcMain.handle('sshConnect', async (event: any, arg: any): Promise<any> => {
+    ss.registerServer(arg, mainWindow);
+  });
+
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 

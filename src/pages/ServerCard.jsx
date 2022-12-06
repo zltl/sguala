@@ -48,27 +48,21 @@ export class ServerCard extends React.Component {
   fcnt = 10;
 
   componentDidMount() {
+    const chanKey = 'STAT_' + this.props.login.uuid;
     console.log('did mount', this.props.login.name);
-    let timeoutMs = 1 * 1000;
+
+    window.ipc.on(chanKey, (e, data) => {
+      if (data.op == 'stat') {
+        const nstat = data.stat;
+        if (nstat) {
+          this.setState({ stat: nstat });
+        }
+      }
+    });
+
     window.stat.connect(this.state.login);
-    const fn = async () => {
-      if (this.stoping) {
-        return;
-      }
-      const nstat = await window.stat.get(this.state.login.uuid);
-      this.setState({ stat: nstat });
-
-      if (nstat && nstat.cpuloa && this.fcnt > 0) {
-        this.fcnt--;
-      }
-      if (this.fcnt <= 0) {
-        timeoutMs = 30 * 1000;
-      }
-
-      setTimeout(fn, timeoutMs);
-    };
-    setTimeout(fn, timeoutMs);
   }
+
   componentWillUnmount() {
     console.log('did unmount', this.props.login.name);
     window.stat.close(this.state.login.uuid);

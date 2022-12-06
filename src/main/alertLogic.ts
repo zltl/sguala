@@ -50,6 +50,8 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
             state.prevUpMatchTs = curts;
         }
         return;
+    } else {
+        state.prevUpMatchTs = curts;
     }
     state.prevUpMatchTs = 0;
 

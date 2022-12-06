@@ -419,19 +419,6 @@ export class SshFetchStats {
         };
     }
 
-    getStat(uuid: string): LinuxStat {
-        // console.log('get stat...');
-        const s = this.srvStats.get(uuid);
-        if (!s) {
-            return undefined;
-        }
-        setTimeout(async () => {
-            await checkAlert(s.serverLogins, s.stat, s.stat.online == OnlineStatus.ONLINE);
-        }, 10);
-
-        return s.stat;
-    }
-
     calculateCpuLoad(s: LinuxSession, data: string) {
         const lines = data.split('\n');
         if (lines.length == 0) {
@@ -615,7 +602,6 @@ export class SshFetchStats {
         s.conn.on('ready', async () => {
             s.stat.online = OnlineStatus.ONLINE;
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'ready');
-            // this.getStats(s);
         });
 
         s.conn.on('close', async () => {
@@ -649,7 +635,7 @@ export class SshFetchStats {
 
     }
 
-    registerServer(ss: ServerLogins) {
+    registerServer(ss: ServerLogins, win: any) {
         console.log("conneting", ss.name, ss.host, ss.port, ss.uuid);
         let s = this.srvStats.get(ss.uuid);
         if (!s) {
@@ -658,6 +644,7 @@ export class SshFetchStats {
             this.srvStats.set(ss.uuid, s);
         }
         this.sshConnect(s);
+        const chanKey = 'STAT_' + ss.uuid;
 
         let timeoutMiseconds = 1 * 1000;
 
@@ -667,6 +654,8 @@ export class SshFetchStats {
                 return;
             }
 
+            checkAlert(ss, s.stat, s.stat.online == OnlineStatus.INIT);
+
             if (s.stat.online == OnlineStatus.INIT) {
                 timeoutMiseconds = 1000;
                 this.sshConnect(s);
@@ -674,6 +663,11 @@ export class SshFetchStats {
 
             if (s.stat.online == OnlineStatus.ONLINE) {
                 this.getStats(s);
+                // TODO: .
+                win.send(chanKey, {
+                    'op': "stat",
+                    'stat': s.stat,
+                });
             }
             if (timeoutMiseconds < 10 * 1000) {
                 timeoutMiseconds = timeoutMiseconds + 1000;
