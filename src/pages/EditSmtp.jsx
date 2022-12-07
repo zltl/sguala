@@ -77,9 +77,9 @@ export function EditSmtp(props) {
                 <EuiToolTip
                     position="top"
                     content={
-                        <p>
+                        <>
                             一般端口是<EuiCode>465</EuiCode>就勾上，<EuiCode>587</EuiCode>或<EuiCode>25</EuiCode>就别勾了
-                        </p>
+                        </>
                     }>
                     <EuiCheckbox
                         id='useSecure'

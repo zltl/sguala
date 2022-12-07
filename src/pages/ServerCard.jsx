@@ -95,14 +95,23 @@ export class ServerCard extends React.Component {
   render() {
     const diskX = this.state.stat.disks.map((it) => {
       return (
-        <EuiProgress
+        <EuiToolTip
+          display='block'
           key={it.name}
-          valueText={true}
-          max={100}
-          color={this.selectColor(it.usePercent * 100)}
-          label={"磁盘占用率 (" + it.name + ')'}
-          value={(it.usePercent * 100).toFixed(2)}
-        />);
+          title={"磁盘占用率 " + it.name}
+          content={<>
+            <p>总大小: {humanFileSize(it.total)}</p>
+            <p>剩余空间: {humanFileSize(it.avail)}</p>
+          </>}>
+          <EuiProgress
+            valueText={true}
+            max={100}
+            color={this.selectColor(it.usePercent * 100)}
+            label={"磁盘占用率 (" + it.name + ')'}
+            value={(it.usePercent * 100).toFixed(2)}
+          />
+        </EuiToolTip>
+      );
     });
     return (
       <EuiCard
@@ -256,15 +265,47 @@ export class ServerCard extends React.Component {
           label="CPU 占用率"
           value={(this.state.stat.cpuload * 100).toFixed(2)}
         />
-        <EuiProgress
-          valueText={true}
-          max={100}
-          color={this.selectColor(this.state.stat.memUsePercent * 100)}
-          label="内存占用率"
-          value={(this.state.stat.memUsePercent * 100).toFixed(2)}
-        />
+
+        <EuiToolTip
+          display='block'
+          title='内存占用'
+          content={<><p>内存总大小: {humanFileSize(this.state.stat.memtotal)}</p>
+            <p>内存剩余: {humanFileSize(this.state.stat.memavail)}</p>
+            <p>MemAvailable = MemFree + Buffers + Cached</p></>}>
+          <EuiProgress
+            valueText={true}
+            max={100}
+            color={this.selectColor(this.state.stat.memUsePercent * 100)}
+            label="内存占用率"
+            value={(this.state.stat.memUsePercent * 100).toFixed(2)}
+          />
+
+        </EuiToolTip>
         {diskX}
       </EuiCard>
     );
   }
+}
+
+
+function humanFileSize(bytes, si = false, dp = 1) {
+  const thresh = si ? 1000 : 1024;
+
+  if (Math.abs(bytes) < thresh) {
+    return bytes + ' B';
+  }
+
+  const units = si
+    ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+  let u = -1;
+  const r = 10 ** dp;
+
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+
+
+  return bytes.toFixed(dp) + ' ' + units[u];
 }

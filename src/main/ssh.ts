@@ -522,28 +522,24 @@ export class SshFetchStats {
 
     getMemInfo(s: LinuxSession) {
         this.execGetStdout(s, 'cat /proc/meminfo', (s: LinuxSession, data: string) => {
-            const getFieldsValue = (dataLines: string[], line: number): number => {
-                if (line >= dataLines.length) {
-                    console.log(`get ${line}-th line of data filed`);
-                    return undefined;
-                }
-                const selectedLine = dataLines[line];
-                const fields = selectedLine.split(/\s+/);
-                if (fields.length < 2) {
-                    console.log(`line ${selectedLine} get number failed`);
-                    return undefined;
-                }
-                const value = Number(fields[1]);
-                return value;
-            }
-
             const lines = data.split('\n');
-            if (lines.length < 3) {
-                console.log('data empty');
-                return;
+            const fields = new Map();
+            lines.forEach((line: string) => {
+                const splits = line.split(/\s+/);
+                if (splits.length < 2) {
+                    return;
+                }
+                fields.set(splits[0], Number(splits[1]) * 1000);
+            });
+
+            const memtotal = fields.get('MemTotal:');
+            let memavail = fields.get('MemAvailable:');
+            if (memavail == undefined || memavail == null) {
+                const memfree = fields.get('MemFree:');
+                const buffers = fields.get('Buffers:');
+                const cached = fields.get('Cached:');
+                memavail = memfree + buffers + cached;
             }
-            const memtotal = getFieldsValue(lines, 0);
-            const memavail = getFieldsValue(lines, 2);
             s.stat.memtotal = memtotal;
             s.stat.memavail = memavail;
             s.stat.memUsePercent = (memtotal - memavail) / memtotal;
@@ -553,16 +549,23 @@ export class SshFetchStats {
 
     getDiskStat(s: LinuxSession) {
         this.execGetStdout(s, 'df', (s: LinuxSession, data: string) => {
+            let prevName = '';
             const getFieldsValue = (line: string): DiskStat => {
                 const fields = line.split(/\s+/);
                 if (fields.length < 5) {
                     // console.log(`line ${line} extract failed`);
+                    prevName = fields[0];
                     return undefined;
                 }
                 const res = new DiskStat();
                 res.name = fields[0];
+                if (res.name == undefined || res.name == '') {
+                    res.name = prevName;
+                }
                 const total = Number(fields[1]);
                 const avail = Number(fields[3]);
+                res.total = total * 1000;
+                res.avail = avail * 1000;
                 res.usePercent = (total - avail) / total;
                 return res;
             }
@@ -697,6 +700,8 @@ const OnlineStatus = {
 export class DiskStat {
     name: string
     usePercent: number
+    total: number
+    avail: number
 }
 
 export class LinuxStat {
