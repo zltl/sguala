@@ -2,12 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
-contextBridge.exposeInMainWorld('myAPI', {
-    desktop: true,
-});
-
 contextBridge.exposeInMainWorld('config', {
     getAll: async () => await ipcRenderer.invoke('getAllConfig'),
+    getVersion: () => ipcRenderer.invoke('getVersion'),
     set: async (arg) => await ipcRenderer.invoke('putServerConfig', arg),
     del: async (uuid) => await ipcRenderer.invoke('delServerConfig', uuid),
     get: async (uuid) => await ipcRenderer.invoke('getServerConfig', uuid),

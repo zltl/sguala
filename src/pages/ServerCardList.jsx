@@ -35,9 +35,16 @@ export class ServerCardList extends React.Component {
         if (!curGroup) {
             curGroup = [];
         }
-        let grcnt = 0;
 
-        const color = visColorsBehindText[grcnt++];
+        let grcnt = 0;
+        const nextColor = () => {
+            const oldidx = grcnt;
+            grcnt = (grcnt + 1) % visColorsBehindText.length;
+            return visColorsBehindText[oldidx];
+        }
+
+        // const color = visColorsBehindText[grcnt++];
+        const color = nextColor();
         const groupList = [{
             label: '所有', color: color, size: configs.servers.length,
         }];
@@ -56,7 +63,7 @@ export class ServerCardList extends React.Component {
                 }
             }
             if (!found) {
-                const color = visColorsBehindText[grcnt++];
+                const color = nextColor();
                 groupList.push({ label: v.group, color: color, size: 1 });
                 servers[j].color = color;
             }

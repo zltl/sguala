@@ -28,8 +28,10 @@ import fs from 'fs';
 import { FileDesc, humanFileSize } from './FileDesc';
 import contextMenu from 'electron-context-menu';
 
+const onDev = fs.existsSync('./.git');
+
 contextMenu({
-  showInspectElement: false,
+  showInspectElement: onDev ? true : false,
   showSearchWithGoogle: false,
 });
 
@@ -161,6 +163,9 @@ const registerAllhandle = () => {
   ipcMain.handle('setCurGroup', async (event: any, g: any) => {
     console.log('setCurGroup', g);
     return await kvsSetCurGroup(g);
+  });
+  ipcMain.handle('getVersion', (event: any): string => {
+    return app.getVersion();
   });
 
   ipcMain.handle('listDir', async (event: any, dir: string): Promise<FileDesc[]> => {

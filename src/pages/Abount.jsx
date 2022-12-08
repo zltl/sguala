@@ -1,11 +1,24 @@
 import { EuiPageSection, EuiListGroup, EuiListGroupItem, EuiSpacer, EuiCode } from '@elastic/eui';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 
 export function Abount(props) {
 
+    const [version, setVersion] = useState('');
+
+    useEffect(() => {
+        window.config.getVersion().then((v) => {
+            setVersion(v);
+            console.log("version=", v);
+        });
+    }, []);
+
+
     return (
         <EuiPageSection>
+            <p>小凶许运维 {version}</p>
+            <EuiSpacer />
+
             <p>小凶许是遵守 GPL-3.0 许可证开发的自由软件，用于监控你的服务器资源。</p>
             <EuiSpacer />
             <p>GPL-3.0 许可证意味着你收到此软件时，同时也会收到一份软件源代码，同时你将拥有四项基本权利：</p>
