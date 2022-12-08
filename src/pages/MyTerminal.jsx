@@ -6,7 +6,7 @@ import { parse as queryParse } from 'querystring';
 import React from 'react';
 
 import "./xterm.css";
-import { EuiFocusTrap, EuiOverlayMask, EuiPanel } from '@elastic/eui';
+import { EuiFocusTrap, EuiOverlayMask, EuiPanel, EuiSpacer, EuiText } from '@elastic/eui';
 
 
 export class MyTerminal extends React.Component {
@@ -15,6 +15,7 @@ export class MyTerminal extends React.Component {
 
         this.state = {
             maskOpen: false,
+            showModal: false,
         };
 
         this.term = null;
@@ -75,12 +76,22 @@ export class MyTerminal extends React.Component {
             // console.log("this is data:", data);
         })
 
-        window.document.addEventListener('drop', (event) => {
+        window.document.addEventListener('drop', async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            let setCurDir;
             for (const f of event.dataTransfer.files) {
                 console.log('File Path of dragged files:', f.path);
+                if (!setCurDir) {
+                    setCurDir = window.fs.getDirname(f.path);
+                }
             }
+            if (setCurDir) {
+                window.fs.setCurDir(setCurDir);
+            }
+            this.setState({ showModal: true });
+            // creat window
+            window.fs.sftpWindow(uuid);
         });
         window.document.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -95,6 +106,16 @@ export class MyTerminal extends React.Component {
         return (
             <>
                 <div id="xterm" style={{ margin: 0, height: '100%' }} ref={c => this.XtermDiv = c} />
+                {this.state.showModal &&
+                    <EuiOverlayMask >
+                        <EuiFocusTrap onClickOutside={() => this.setState({ showModal: false })}>
+                            <EuiPanel>
+                                <EuiText><h1>已经打开sftp窗口</h1></EuiText>
+                                <EuiSpacer />
+                            </EuiPanel>
+                        </EuiFocusTrap>
+                    </EuiOverlayMask>
+                }
             </>
         );
     }

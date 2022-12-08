@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('fs', {
     getCurGroup: async () => await ipcRenderer.invoke('getCurGroup'),
     setCurGroup: async (g) => await ipcRenderer.invoke('setCurGroup', g),
 
+    getDirname: (p) => path.dirname(p),
+
     listDir: async (dir) => await ipcRenderer.invoke('listDir', dir),
     cd: (origin, dst) => {
         const newDir = path.join(origin, dst);
@@ -57,6 +59,6 @@ contextBridge.exposeInMainWorld('rterm', {
 contextBridge.exposeInMainWorld('ipc', {
     'send': (chan, data) => ipcRenderer.send(chan, data),
     'on': (chan, fn) => ipcRenderer.on(chan, fn),
-    'clear': (chan) => ipcRenderer.removeAllListeners(chan), 
+    'clear': (chan) => ipcRenderer.removeAllListeners(chan),
 });
 

@@ -44,6 +44,30 @@ export class SshFetchStats {
                             stream.write(data.data);
                         } else if (data.op == 'resize') {
                             stream.setWindow(data.rows, data.cols, '', '');
+                        } else if (data.op == 'pwd') {
+                            s.conn.exec('pwd', { env: this.exeEnv() }, (err: any, stream: any) => {
+                                let content = '';
+                                if (err) {
+                                    console.log('error when pwd', s.login.host, s.login.port, err);
+                                    return;
+                                }
+                                stream.on('close', (code: number, signal: any) => {
+                                    console.log('streawm close', content);
+                                    if (content.length > 0) {
+                                        win.send(chanKey, {
+                                            'op': "pwd",
+                                            'data': content,
+                                        });
+                                    }
+                                }).on('data', (data: string) => {
+                                    console.log('ondata...', 'pwd');
+                                    content = content + data;
+                                }).stderr.on('data', (data: string) => {
+                                    console.log('stderr pwd', data, s.login.host, s.login.port);
+                                });
+                            });
+
+
                         }
                         // console.log("witten to remote");
                     });

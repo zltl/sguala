@@ -26,6 +26,12 @@ import { kvsGetCurDir, kvsGetCurGroup, kvsSetCurDir, kvsSetCurGroup } from './kv
 import path from 'path';
 import fs from 'fs';
 import { FileDesc, humanFileSize } from './FileDesc';
+import contextMenu from 'electron-context-menu';
+
+contextMenu({
+  showInspectElement: false,
+  showSearchWithGoogle: false,
+});
 
 /*
 const server = 'https://update.electronjs.org'
