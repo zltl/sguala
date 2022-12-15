@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useState } from 'react';
 import { Nav } from './Nav'
 import { ServerCardList } from './ServerCardList';
 import { Abount } from './Abount';
@@ -12,128 +12,115 @@ import {
   EuiPageSection,
 } from '@elastic/eui';
 import '@elastic/eui/dist/eui_theme_light.css';
+import { useTranslation } from 'react-i18next';
 
 
 import { AddServerPage } from './AddServerPage';
 import { EditSmtp } from './EditSmtp';
 
 // main content of app.
-export class Sguala extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      toasts: [],
-      currentPage: 'MAIN',
-    }
+export function Sguala(props) {
+  const [toasts, setToasts] = useState([]);
+  const [currentPage, setCurrentPage] = useState('MAIN');
+
+  let updateCardListFN = undefined;
+  const { t, i18n } = useTranslation();
+
+  const setToast = (tos) => {
+    setToasts((toss) => toss.concat(tos));
   }
 
-  setToast(tos) {
-    this.setState((state) => {
-      return {
-        toasts: state.toasts.concat(tos),
-      }
-    })
+  const clearToast = () => {
+    setToasts([]);
   }
-  clearToast() {
-    this.setState({ toasts: [] });
-  }
-  removeToast(removedToast) {
-    this.setState((state) => {
-      return {
-        toasts: state.toasts.filter((toast) => toast.id !== removedToast.id)
-      };
-    });
+  const removeToast = (removedToast) => {
+    setToasts((toss) => toss.filter((toast) => toast.id !== removedToast.id));
   }
 
-  setserverCardListUpdate(fn) {
-    this.setState({ updateCardListFN: fn });
+  const setserverCardListUpdate = (fn) => {
+    updateCardListFN = fn;
   }
 
-  render() {
-    return (< EuiPage >
-      <EuiPageBody paddingSize="none" panelled={false}>
-        <div>
-          <Nav navIsOpen={false}
-            navIsDocked={false}
-            setActivePage={(p) => {
-              this.setState({ currentPage: p });
-            }} />
+  return (< EuiPage >
+    <EuiPageBody paddingSize="none" panelled={false}>
+      <div>
+        <Nav navIsOpen={false}
+          navIsDocked={false}
+          setActivePage={(p) => { setCurrentPage(p) }} />
 
-          {this.state.currentPage == 'MAIN' &&
-            <>
-              <AddServerPage updateCardList={async () => await this.state.updateCardListFN()} />
+        {currentPage == 'MAIN' &&
+          <>
+            <AddServerPage updateCardList={async () => await updateCardListFN()} />
 
-              <EuiToolTip
-                position="export"
-                content={
-                  <p>
-                    导出服务器配置
-                  </p>
-                }
-              >
+            <EuiToolTip
+              position="export"
+              content={
+                <p>
+                  {t('Export config')}
+                </p>
+              }
+            >
+              <EuiButtonIcon iconType="exportAction"
+                aria-label='export config to clipboard'
+                size="m"
+                onClick={async () => {
+                  await window.config.exportFile();
+                  setToast(
+                    {
+                      id: new Date().valueOf(),
+                      text: t('Export config'),
+                      color: 'success',
+                    }
+                  );
+                }} />
+            </EuiToolTip>
 
-                <EuiButtonIcon iconType="exportAction"
-                  aria-label='export config to clipboard'
-                  size="m"
-                  onClick={async () => {
-                    await window.config.exportFile();
-                    this.setToast(
-                      {
-                        id: new Date().valueOf(),
-                        text: '导出配置文件',
-                        color: 'success',
-                      }
-                    );
-                  }} />
-              </EuiToolTip>
+            <EuiToolTip
+              position="import"
+              content={
+                <p>
+                  {t('Load config')}
+                </p>
+              }
+            >
+              <EuiButtonIcon iconType="importAction"
+                aria-label='import config '
+                size="m"
+                onClick={async () => {
+                  await window.config.importFile();
+                  setToast(
+                    {
+                      id: new Date().valueOf(),
+                      text: t('Load config'),
+                      color: 'success',
+                    }
+                  );
+                  await updateCardListFN();
+                }} />
+            </EuiToolTip>
+          </>
+        }
+      </div>
 
-              <EuiToolTip
-                position="import"
-                content={
-                  <p>
-                    导入服务器配置
-                  </p>
-                }
-              >
-                <EuiButtonIcon iconType="importAction"
-                  aria-label='import config '
-                  size="m"
-                  onClick={async () => {
-                    await window.config.importFile();
-                    this.setToast(
-                      {
-                        id: new Date().valueOf(),
-                        text: '导入配置文件',
-                        color: 'success',
-                      }
-                    );
-                    await this.state.updateCardListFN();
-                  }} />
-              </EuiToolTip>
-            </>
-          }
-        </div>
+      {currentPage == 'MAIN' && <div>
+        <ServerCardList updateCardList={async () => await updateCardListFN()}
+          setUpdateCB={(fn) => setserverCardListUpdate(fn)} />
+      </div>}
 
-        {this.state.currentPage == 'MAIN' && <div>
-          <ServerCardList updateCardList={async () => await this.state.updateCardListFN()}
-            setUpdateCB={(fn) => this.setserverCardListUpdate(fn)} />
-        </div>}
+      {currentPage == 'SMTP' && <div><EditSmtp /></div>}
 
-        {this.state.currentPage == 'SMTP' && <div><EditSmtp /></div>}
+      {currentPage == 'ABOUT' && <Abount />}
 
-        {this.state.currentPage == 'ABOUT' && <Abount />}
+    </EuiPageBody>
 
-      </EuiPageBody>
+    <EuiGlobalToastList
+      toasts={toasts}
+      dismissToast={() => {
+        clearToast();
+      }}
+      toastLifeTimeMs={6000}
+    />
 
-      <EuiGlobalToastList
-        toasts={this.state.toasts}
-        dismissToast={() => {
-          this.clearToast();
-        }}
-        toastLifeTimeMs={6000}
-      />
-
-    </EuiPage >
-    );
-  }
+  </EuiPage >
+  );
 }

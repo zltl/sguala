@@ -16,8 +16,10 @@ import {
     EuiPage,
     EuiPageSection,
 } from '@elastic/eui';
+import { useTranslation } from 'react-i18next';
 
 export function EditSmtp(props) {
+    const { t, i18n } = useTranslation();
 
     const [fromHost, setFromHost] = useState(undefined); // smtp
     const [fromPort, setFromPort] = useState(465);
@@ -62,13 +64,13 @@ export function EditSmtp(props) {
         <EuiPageSection paddingSize='l' >
             <EuiForm component="form" >
 
-                <EuiFormRow label="邮件 smtp 服务器" >
+                <EuiFormRow label={t("SMTP server")} >
                     <EuiFieldText
                         placeholder='smtp.gmail.com'
                         value={fromHost}
                         onChange={(e) => setFromHost(e.target.value)} />
                 </EuiFormRow>
-                <EuiFormRow label="邮件 smtp 端口号" >
+                <EuiFormRow label={t('SMTP port')} >
                     <EuiFieldText
                         placeholder='465'
                         value={fromPort}
@@ -83,20 +85,20 @@ export function EditSmtp(props) {
                     }>
                     <EuiCheckbox
                         id='useSecure'
-                        label='安全链接'
+                        label={t("Secure (TLS)")}
                         checked={fromSecure}
                         onChange={(e) => setFromSecure(e.target.checked)}
                     />
                 </EuiToolTip>
 
-                <EuiFormRow label='发件箱地址'>
+                <EuiFormRow label={t('Email address')}>
                     <EuiFieldText
                         placeholder='alert@quant67.com'
                         value={fromEmail}
                         onChange={(e) => setFromEmail(e.target.value)}
                     />
                 </EuiFormRow>
-                <EuiFormRow label='发件箱密码'>
+                <EuiFormRow label={t('Email Password')}>
                     <EuiFieldPassword
                         type='dual'
                         value={fromPassword}
@@ -105,7 +107,7 @@ export function EditSmtp(props) {
                 </EuiFormRow>
 
                 <EuiSpacer />
-                <EuiSwitch label="礼仪"
+                <EuiSwitch label={t('Etiquette')}
                     checked={etiquette}
                     onChange={(e) => setEtiquette(e.target.checked)} />
 
@@ -116,7 +118,7 @@ export function EditSmtp(props) {
                         e.preventDefault();
                         await submitFN()
                     }}>
-                    保存
+                    {t('Save')}
                 </EuiButton>
             </EuiForm>
         </EuiPageSection>

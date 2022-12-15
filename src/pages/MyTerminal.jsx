@@ -110,7 +110,7 @@ export class MyTerminal extends React.Component {
                     <EuiOverlayMask >
                         <EuiFocusTrap onClickOutside={() => this.setState({ showModal: false })}>
                             <EuiPanel>
-                                <EuiText><h1>已经打开sftp窗口</h1></EuiText>
+                                <EuiText><h1>sftp window opened</h1></EuiText>
                                 <EuiSpacer />
                             </EuiPanel>
                         </EuiFocusTrap>

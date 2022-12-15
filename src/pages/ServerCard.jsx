@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   EuiCard,
   EuiIcon,
@@ -18,65 +18,59 @@ import {
 import { EditServer } from './EditServer';
 import { EditAlert } from './EditAlert';
 
+import { useTranslation } from 'react-i18next';
+
 export class SrvCardProps {
   title = "服务器名称"
 }
 
-export class ServerCard extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      stat: {
-        cpuloa: undefined,
-        memavail: undefined,
-        memtotal: undefined,
-        memUsePercent: undefined,
-        online: 'INIT',
-        disks: [],
-      },
-      login: props.login,
-      isAlertEditOpen: false,
-      isEditOpen: false,
-      updateCardList: props.updateCardList,
-      isFirst: props.isFirst,
-      color: props.color,
-    };
-  }
+export function ServerCard(props) {
+  const [cpuload, setCpuload] = useState(undefined);
+  const [memavail, setMemavail] = useState(undefined);
+  const [memtotal, setMemtotal] = useState(undefined);
+  const [memUsePercent, setMemUsePercent] = useState(undefined);
+  const [online, setOnline] = useState('INIT');
+  const [disks, setDisks] = useState([]);
+  const [login, setLogin] = useState(props.login);
+  const [isAlertEditOpen, setIsAlertEditOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
-  stoping = false;
+  const updateCardList = props.updateCardList;
+  const isFirst = props.isFirst;
+  const color = props.color;
 
-  fcnt = 10;
+  let stoping = false;
+  let fcnt = 10;
 
-  componentDidMount() {
-    const chanKey = 'STAT_' + this.props.login.uuid;
-    console.log('did mount', this.props.login.name);
+  useEffect(() => {
+    const chanKey = 'STAT_' + props.login.uuid;
+    console.log('did mount', props.login.name);
 
     window.ipc.on(chanKey, (e, data) => {
       if (data.op == 'stat') {
         const nstat = data.stat;
         if (nstat) {
-          this.setState({ stat: nstat });
+          setCpuload(nstat.cpuload);
+          setMemavail(nstat.memavail);
+          setMemtotal(nstat.memtotal);
+          setMemUsePercent(nstat.memUsePercent);
+          setOnline(nstat.online);
+          setDisks(nstat.disks);
         }
       }
     });
 
-    window.stat.connect(this.state.login);
-  }
+    window.stat.connect(login);
 
-  componentWillUnmount() {
-    console.log('did unmount', this.props.login.name);
-    window.stat.close(this.state.login.uuid);
-    this.stoping = true;
-  }
+    return () => {
+      console.log('did unmount', props.login.name);
+      window.stat.close(login.uuid);
+      stoping = true;
+    }
+  }, [])
 
-  setIsEditOpen(v) {
-    this.setState({ isEditOpen: v });
-  }
-  setIsAlertEditOpen(v) {
-    this.setState({ isAlertEditOpen: v });
-  }
 
-  selectColor(v) {
+  const selectColor = (v) => {
     if (v < 80) {
       return 'success';
     }
@@ -86,205 +80,206 @@ export class ServerCard extends React.Component {
     return 'danger';
   }
 
-  async moveFront() {
-    console.log('move front ', this.state.login.uuid);
-    await window.config.configMoveFront(this.state.login.uuid);
-    this.props.updateCardList();
+  const moveFront = async () => {
+    console.log('move front ', login.uuid);
+    await window.config.configMoveFront(login.uuid);
+    props.updateCardList();
   }
 
-  render() {
-    const diskX = this.state.stat.disks.map((it) => {
-      return (
-        <EuiToolTip
-          display='block'
-          key={it.name}
-          title={"磁盘占用率 " + it.name}
-          content={<>
-            <p>总大小: {humanFileSize(it.total)}</p>
-            <p>剩余空间: {humanFileSize(it.avail)}</p>
-          </>}>
-          <EuiProgress
-            valueText={true}
-            max={100}
-            color={this.selectColor(it.usePercent * 100)}
-            label={"磁盘占用率 (" + it.name + ')'}
-            value={(it.usePercent * 100).toFixed(2)}
-          />
-        </EuiToolTip>
-      );
-    });
+  const { t, i18n } = useTranslation();
+
+
+  const diskX = disks.map((it) => {
     return (
-      <EuiCard
-        textAlign="left"
-        title={
-          <>
-            {this.state.stat.online == 'ONLINE' ? <EuiIcon size="s" type="online" /> : <EuiIcon size="s" type="offline" />}
-            {' '}
-            {this.state.login.name}
-          </>
-        }
-        description={
-          <>
-            <div>
-              {this.state.color &&
-                <EuiHealth color={this.state.color}>
-                  {this.state.login.group}
-                </EuiHealth>}
-            </div>
-
-            <EuiToolTip
-              position="top"
-              content={
-                <p>
-                  移动到前面
-                </p>
-              }
-            >
-              <EuiButtonIcon
-                isDisabled={this.state.isFirst}
-                iconType="sortLeft"
-                aria-label='move card up'
-                onClick={() => { this.moveFront() }}
-              />
-            </EuiToolTip>
-
-
-            <>
-              <EuiToolTip
-                position="top"
-                content={<p>编辑服务器信息</p>}>
-                <EuiButtonIcon
-                  iconType="documentEdit"
-                  aria-label='edit server login info'
-                  onClick={() => this.setIsEditOpen(true)}
-                />
-              </EuiToolTip>
-
-              {this.state.isEditOpen &&
-                <EuiModal onClose={() => this.setIsEditOpen(false)}>
-                  <EuiModalHeader>
-                    <EuiModalHeaderTitle>
-                      <h1>修改服务器信息</h1>
-                    </EuiModalHeaderTitle>
-                  </EuiModalHeader>
-                  <EuiModalBody>
-                    <EditServer {...this.state.login}
-                      updateCardList={() => this.props.updateCardList()}
-                      closePopover={() => { this.setIsEditOpen(false); }} />
-                  </EuiModalBody>
-                </EuiModal>}
-            </>
-
-
-            <>
-              <EuiToolTip
-                position="top"
-                content={
-                  <p>
-                    编辑告警
-                  </p>
-                }>
-                <EuiButtonIcon
-                  iconType="alert"
-                  aria-label='edit server alert info'
-                  onClick={() => this.setIsAlertEditOpen(!this.state.isAlertEditOpen)} />
-              </EuiToolTip>
-
-              {this.state.isAlertEditOpen &&
-                <EuiModal onClose={() => this.setIsAlertEditOpen(false)}>
-                  <EuiModalHeader>
-                    <EuiModalHeaderTitle>
-                      <h1>编辑告警</h1>
-                    </EuiModalHeaderTitle>
-                  </EuiModalHeader>
-                  <EuiModalBody>
-                    <EditAlert
-                      uuid={this.state.login.uuid}
-                      closePopover={() => this.setIsAlertEditOpen(false)} />
-                  </EuiModalBody>
-                </EuiModal>}
-            </>
-
-            <EuiToolTip
-              content={
-                <p>
-                  远程文件传输
-                </p>
-              }
-            >
-              <EuiButtonIcon
-                iconType="crossClusterReplicationApp"
-                aria-label='start transfer remote'
-                onClick={() => { window.fs.sftpWindow(this.state.login.uuid); }}
-              />
-            </EuiToolTip>
-
-            <EuiToolTip
-              content={
-                <p>
-                  远程登录
-                </p>
-              }
-            >
-              <EuiButtonIcon
-                style={{ marginRight: 40 }}
-                iconType="consoleApp"
-                aria-label='start terminal remote'
-                onClick={() => { window.rterm.shellWindow(this.state.login.uuid); }}
-              />
-            </EuiToolTip>
-
-
-            <EuiToolTip
-              position="top"
-              content={
-                <p>
-                  删除服务器卡片
-                </p>
-              }
-            >
-              <EuiButtonIcon
-                iconType="trash"
-                area-label='delete server'
-                onClick={async () => {
-                  console.log('delete', this.state.login.uuid);
-                  await window.config.del(this.state.login.uuid);
-                  await this.state.updateCardList();
-                }}
-              />
-            </EuiToolTip>
-
-          </>
-        }
-      >
-
+      <EuiToolTip
+        display='block'
+        key={it.name}
+        title={t("Disk usage") + " " + it.name}
+        content={<>
+          <p>{t("Total size")}: {humanFileSize(it.total)}</p>
+          <p>{t("Available size")}: {humanFileSize(it.avail)}</p>
+        </>}>
         <EuiProgress
           valueText={true}
           max={100}
-          color={this.selectColor(this.state.stat.cpuload * 100)}
-          label="CPU 占用率"
-          value={(this.state.stat.cpuload * 100).toFixed(2)}
+          color={selectColor(it.usePercent * 100)}
+          label={t("Disk usage") + " (" + it.name + ')'}
+          value={(it.usePercent * 100).toFixed(2)}
+        />
+      </EuiToolTip>
+    );
+  });
+  return (
+    <EuiCard
+      textAlign="left"
+      title={
+        <>
+          {online == 'ONLINE' ? <EuiIcon size="s" type="online" /> : <EuiIcon size="s" type="offline" />}
+          {' '}
+          {login.name}
+        </>
+      }
+      description={
+        <>
+          <div>
+            {color &&
+              <EuiHealth color={color}>
+                {login.group}
+              </EuiHealth>}
+          </div>
+
+          <EuiToolTip
+            position="top"
+            content={
+              <p>
+                {t("Available size")}
+              </p>
+            }
+          >
+            <EuiButtonIcon
+              isDisabled={isFirst}
+              iconType="sortLeft"
+              aria-label='move card up'
+              onClick={() => { moveFront() }}
+            />
+          </EuiToolTip>
+
+
+          <>
+            <EuiToolTip
+              position="top"
+              content={<p>{t("Edit server info")}</p>}>
+              <EuiButtonIcon
+                iconType="documentEdit"
+                aria-label='edit server login info'
+                onClick={() => setIsEditOpen(true)}
+              />
+            </EuiToolTip>
+
+            {isEditOpen &&
+              <EuiModal onClose={() => setIsEditOpen(false)}>
+                <EuiModalHeader>
+                  <EuiModalHeaderTitle>
+                    <h1>{t('Modify server info')}</h1>
+                  </EuiModalHeaderTitle>
+                </EuiModalHeader>
+                <EuiModalBody>
+                  <EditServer {...login}
+                    updateCardList={() => props.updateCardList()}
+                    closePopover={() => { setIsEditOpen(false); }} />
+                </EuiModalBody>
+              </EuiModal>}
+          </>
+
+
+          <>
+            <EuiToolTip
+              position="top"
+              content={
+                <p>
+                  {t('Edit alerts')}
+                </p>
+              }>
+              <EuiButtonIcon
+                iconType="alert"
+                aria-label='edit server alert info'
+                onClick={() => setIsAlertEditOpen(!isAlertEditOpen)} />
+            </EuiToolTip>
+
+            {isAlertEditOpen &&
+              <EuiModal onClose={() => setIsAlertEditOpen(false)}>
+                <EuiModalHeader>
+                  <EuiModalHeaderTitle>
+                    <h1> {t('Edit alerts')}</h1>
+                  </EuiModalHeaderTitle>
+                </EuiModalHeader>
+                <EuiModalBody>
+                  <EditAlert
+                    uuid={login.uuid}
+                    closePopover={() => setIsAlertEditOpen(false)} />
+                </EuiModalBody>
+              </EuiModal>}
+          </>
+
+          <EuiToolTip
+            content={
+              <p>
+                {t('Remote file transfer')}
+              </p>
+            }
+          >
+            <EuiButtonIcon
+              iconType="crossClusterReplicationApp"
+              aria-label='start transfer remote'
+              onClick={() => { window.fs.sftpWindow(login.uuid); }}
+            />
+          </EuiToolTip>
+
+          <EuiToolTip
+            content={
+              <p>
+                {t('Login terminal')}
+              </p>
+            }
+          >
+            <EuiButtonIcon
+              style={{ marginRight: 40 }}
+              iconType="consoleApp"
+              aria-label='start terminal remote'
+              onClick={() => { window.rterm.shellWindow(login.uuid); }}
+            />
+          </EuiToolTip>
+
+
+          <EuiToolTip
+            position="top"
+            content={
+              <p>
+                {t('delete')}
+              </p>
+            }
+          >
+            <EuiButtonIcon
+              iconType="trash"
+              area-label='delete server'
+              onClick={async () => {
+                console.log('delete', login.uuid);
+                await window.config.del(login.uuid);
+                await updateCardList();
+              }}
+            />
+          </EuiToolTip>
+
+        </>
+      }
+    >
+
+      <EuiProgress
+        valueText={true}
+        max={100}
+        color={selectColor(cpuload * 100)}
+        label={t("CPU usage")}
+        value={(cpuload * 100).toFixed(2)}
+      />
+
+      <EuiToolTip
+        display='block'
+        title={t('Memory usage')}
+        content={<><p>{t('Total memory size')}: {humanFileSize(memtotal)}</p>
+          <p>{t('Available memory size')}: {humanFileSize(memavail)}</p>
+          <p>MemAvailable = MemFree + Buffers + Cached</p></>}>
+        <EuiProgress
+          valueText={true}
+          max={100}
+          color={selectColor(memUsePercent * 100)}
+          label={t('Memory usage')}
+          value={(memUsePercent * 100).toFixed(2)}
         />
 
-        <EuiToolTip
-          display='block'
-          title='内存占用'
-          content={<><p>内存总大小: {humanFileSize(this.state.stat.memtotal)}</p>
-            <p>内存剩余: {humanFileSize(this.state.stat.memavail)}</p>
-            <p>MemAvailable = MemFree + Buffers + Cached</p></>}>
-          <EuiProgress
-            valueText={true}
-            max={100}
-            color={this.selectColor(this.state.stat.memUsePercent * 100)}
-            label="内存占用率"
-            value={(this.state.stat.memUsePercent * 100).toFixed(2)}
-          />
-
-        </EuiToolTip>
-        {diskX}
-      </EuiCard>
-    );
-  }
+      </EuiToolTip>
+      {diskX}
+    </EuiCard>
+  );
 }
 
 

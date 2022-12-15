@@ -9,6 +9,7 @@ import {
 } from '@elastic/eui';
 
 import { EditServer } from './EditServer';
+import { useTranslation } from 'react-i18next';
 
 export class AddSrvProps {
   isPopoverOpen = false
@@ -19,13 +20,16 @@ export function AddServerPage(props) {
 
   const [isModalVisible, setIsModalVisible] = useState(false);
 
+  const { t, i18n } = useTranslation();
+
+
   return (
     <>
       <EuiToolTip
         position="top"
         content={
           <p>
-            添加需要监控的服务器
+            {t('Add a remote server')}
           </p>
         }
       >
@@ -39,7 +43,7 @@ export function AddServerPage(props) {
         <EuiModal onClose={() => setIsModalVisible(false)}>
           <EuiModalHeader>
             <EuiModalHeaderTitle>
-              <h1>添加服务器</h1>
+              <h1>{t('Add a remote server')}</h1>
             </EuiModalHeaderTitle>
           </EuiModalHeader>
           <EuiModalBody>

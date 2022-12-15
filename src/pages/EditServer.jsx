@@ -10,8 +10,13 @@ import {
   EuiSpacer,
   EuiCheckbox,
 } from '@elastic/eui';
+import { useTranslation } from 'react-i18next';
 
 export function EditServer(props) {
+
+  const { t, i18n } = useTranslation();
+
+
   const [serverName, setServerName] = useState(props.name);
   const [serverHost, setServerHost] = useState(props.host);
   const [serverPort, setServerPort] = useState(props.port ? props.port : 22);
@@ -43,40 +48,40 @@ export function EditServer(props) {
 
   return (
     <EuiForm component="form" >
-      <EuiFormRow label="名称">
+      <EuiFormRow label={t('Name')}>
         <EuiFieldText
-          placeholder="起个响亮的名字"
+          placeholder={t('Name the server')}
           value={serverName}
           onChange={(e) => setServerName(e.target.value)}
         />
       </EuiFormRow>
 
       <EuiFormRow
-        label="分组">
+        label={t('Group')}>
         <EuiFieldText
-          placeholder="分组名称"
+          placeholder={t('Set group name')}
           value={group}
           onChange={(e) => setGroup(e.target.value)} />
       </EuiFormRow>
 
-      <EuiFormRow label="服务器地址">
+      <EuiFormRow label={t('Server Address')}>
         <EuiFieldText
-          placeholder="IP 地址或域名"
+          placeholder={t('IP or domain name')}
           value={serverHost}
           onChange={(e) => setServerHost(e.target.value)}
         />
       </EuiFormRow>
 
-      <EuiFormRow label="端口号">
+      <EuiFormRow label={t('Port')}>
         <EuiFieldNumber
           value={serverPort}
           onChange={(e) => setServerPort(Number(e.target.value))}
         />
       </EuiFormRow>
 
-      <EuiFormRow label="用户名">
+      <EuiFormRow label={t("User name")}>
         <EuiFieldText
-          placeholder="用户名"
+          placeholder={t("User name")}
           value={serverUsername}
           onChange={(e) => setServerUsername(e.target.value)}
         />
@@ -84,22 +89,22 @@ export function EditServer(props) {
 
       <EuiSpacer />
       <EuiCheckbox id="checkUserPassword"
-        label="使用密码，而不是私钥"
+        label={t('Use password instead of private key')}
         checked={usePassword}
         onChange={(e) => setUsePassword(e.target.checked)}
       />
 
-      <EuiFormRow label={usePassword ? "密码" : "私钥"} >
+      <EuiFormRow label={usePassword ? t('Password') : t('Private key')} >
         {usePassword ?
           <EuiFieldPassword
-            placeholder="服务器密码"
+            placeholder={t('Password')}
             type={'dual'}
             value={serverPassword}
             onChange={(e) => setServerPassword(e.target.value)}
           />
           :
           <EuiTextArea
-            placeholder="私钥 PEM 文件内容粘贴到这里"
+            placeholder={t("Content of private key (pem)")}
             value={serverKey}
             onChange={(e) => setServerKey(e.target.value)}
           />
@@ -113,7 +118,7 @@ export function EditServer(props) {
           e.preventDefault();
           submitFN()
         }}>
-        保存
+        {t("Save")}
       </EuiButton>
     </EuiForm>
   );

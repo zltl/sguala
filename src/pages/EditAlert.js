@@ -15,7 +15,11 @@ import {
     EuiCode,
 } from '@elastic/eui';
 
+
+import { useTranslation } from 'react-i18next';
+
 export function EditAlert(props) {
+    const { t, i18n } = useTranslation();
 
     let alerts = {};
 
@@ -102,7 +106,7 @@ export function EditAlert(props) {
         <EuiForm component="form" >
 
             <EuiSwitch
-                label="启用"
+                label={t('Enable')}
                 checked={isOpen}
                 onChange={(e) => setIsOpen(e.target.checked)}
             />
@@ -116,7 +120,7 @@ export function EditAlert(props) {
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 style={{ width: '6em' }}
-                                prepend={'CPU 占用率超过'}
+                                prepend={t('CPU usage exceeds')}
                                 value={cpuAlertValue}
                                 onChange={(e) => setCpuAlertValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
@@ -126,14 +130,12 @@ export function EditAlert(props) {
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiFieldNumber
-                                prepend={'持续'}
+                                prepend={t('for')}
                                 style={{ width: '4em' }}
                                 value={cpuAlertForValue}
                                 onChange={(e) => setCpuAlertForValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
-                                append={
-                                    '分钟'
-                                }
+                                append={t('minute')}
                             />
                         </EuiFlexItem>
                     </EuiFlexGroup>
@@ -150,7 +152,7 @@ export function EditAlert(props) {
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 style={{ width: '6em' }}
-                                prepend={'内存占用率超过'}
+                                prepend={t('Memory usage exceeds')}
                                 value={memAlertValue}
                                 onChange={(e) => setMemAlertValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
@@ -161,12 +163,12 @@ export function EditAlert(props) {
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 style={{ width: '4em' }}
-                                prepend={'持续'}
+                                prepend={t('for')}
                                 value={memAlertForValue}
                                 onChange={(e) => setMemAlertForValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
                                 append={
-                                    '分钟'
+                                    t('minute')
                                 }
                             />
                         </EuiFlexItem>
@@ -184,24 +186,21 @@ export function EditAlert(props) {
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 style={{ width: '6em' }}
-                                prepend={'磁盘占用率超过'}
+                                prepend={t('Disk usage exceeds')}
                                 value={diskAlertValue}
                                 onChange={(e) => setDiskAlertValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
-                                append={'%'
-                                }
+                                append={'%'}
                             />
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiFieldNumber
                                 style={{ width: '4em' }}
-                                prepend={'持续'}
+                                prepend={t('for')}
                                 value={diskAlertForValue}
                                 onChange={(e) => setDiskAlertForValue(parseFloat(e.target.value))}
                                 aria-label="select alert value"
-                                append={
-                                    '分钟'
-                                }
+                                append={t('minute')}
                             />
                         </EuiFlexItem>
                     </EuiFlexGroup>
@@ -214,11 +213,11 @@ export function EditAlert(props) {
                 id='upCheck'
                 label={
                     <EuiFieldNumber
-                        prepend={'服务器连不上持续'}
+                        prepend={t('Server disconnect for')}
                         value={upAlertForValue}
                         onChange={(e) => setUpAlertForValue(parseFloat(e.target.value))}
                         aria-label="select alert value"
-                        append={'分钟'}
+                        append={t('minute')}
                     />
                 }
                 checked={upCheck}
@@ -227,7 +226,7 @@ export function EditAlert(props) {
 
             <EuiSpacer />
 
-            <EuiFormRow label='收件箱地址'>
+            <EuiFormRow label={t('Email address for receiving alerts')}>
                 <EuiFieldText
                     value={toEmail}
                     onChange={(e) => setToEmail(e.target.value)}
@@ -236,12 +235,12 @@ export function EditAlert(props) {
 
             <EuiSpacer />
             <EuiFieldNumber
-                prepend={'这个服务器的告警邮件'}
+                prepend={t('Alerts email of this server')}
                 value={mailInterval}
                 onChange={(e) => setMailInterval(parseFloat(e.target.value))}
                 aria-label="select alert value"
                 append={
-                    '分钟内不用再发'
+                    t('minutes')
                 }
             />
 
@@ -252,7 +251,7 @@ export function EditAlert(props) {
                     e.preventDefault();
                     await submitFN()
                 }}>
-                保存
+                {t('Save')}
             </EuiButton>
         </EuiForm>
     );

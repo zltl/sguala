@@ -5,6 +5,7 @@ import '@elastic/eui/dist/eui_theme_light.css';
 import createCache from '@emotion/cache';
 import { EuiProvider } from '@elastic/eui';
 
+import './i18n';
 
 const cache = createCache({
     key: 'codesandbox',
