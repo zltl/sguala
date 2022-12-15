@@ -356,7 +356,7 @@ export function SftpTransferPage(props) {
 
                         <EButton />
 
-                        <EPannel initialSize={th3Height}  >
+                        <EPannel initialSize={th3Height} style={{ overflow: 'hidden' }} >
 
                             <EuiDroppable
                                 droppableId='TRAN_STATUS_AREA'
