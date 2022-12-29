@@ -48,5 +48,7 @@
   "Email Password": "发件箱密码",
   "etiquette": "礼貌",
   "Load config": "导入服务器配置",
-  "Export config": "导出配置文件"
+  "Export config": "导出配置文件",
+  "Use hopping": "使用跳板",
+  "Hopping Server": "跳板服务器"
 }

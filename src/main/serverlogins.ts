@@ -10,4 +10,6 @@ export class ServerLogins {
     usePassword: boolean
     group: string
     updateTime: string
+    useHopping: boolean
+    hoppingID: string
 }

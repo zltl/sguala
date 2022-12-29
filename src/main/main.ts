@@ -279,6 +279,9 @@ const createShellWindow = async (uuid: string) => {
 
   shellWindow.on('close', () => {
     s.conn.end();
+    if (s.extConn) {
+      s.extConn.end();
+    }
   });
 
   shellCnt++;
@@ -320,6 +323,9 @@ const createSftpWindow = async (uuid: string) => {
 
   sftpWindow.on('close', () => {
     s.conn.end();
+    if (s.extConn) {
+      s.extConn.end();
+    }
   });
   shellCnt++;
 };

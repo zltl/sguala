@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   EuiTextArea,
   EuiFieldPassword,
@@ -9,6 +9,7 @@ import {
   EuiFieldNumber,
   EuiSpacer,
   EuiCheckbox,
+  EuiSelect,
 } from '@elastic/eui';
 import { useTranslation } from 'react-i18next';
 
@@ -25,6 +26,9 @@ export function EditServer(props) {
     props.username ? props.username : 'root');
   const [serverPassword, setServerPassword] = useState(props.password);
   const [serverKey, setServerKey] = useState(props.privateKey);
+  const [useHopping, setUseHopping] = useState(props.useHopping);
+  const [hoppingID, setHoppingID] = useState(props.hoppingID);
+  const [hoppingOptions, setHoppingOptions] = useState([]);
 
   const [group, setGroup] = useState(props.group);
 
@@ -42,9 +46,33 @@ export function EditServer(props) {
       usePassword: usePassword,
       group: group,
       updateTime: new Date().toISOString(),
+      useHopping: useHopping,
+      hoppingID: hoppingID,
     });
     await props.updateCardList();
   };
+
+  const loadHops = async (ok) => {
+    // load config
+    const configs = await window.config.getAll();
+    let servers = configs.servers;
+    let options = [];
+    for (let j = 0; j < servers.length; j++) {
+      const sv = servers[j];
+      if (sv.useHopping) {
+        continue;
+      }
+      options.push({
+        value: sv.uuid,
+        text: sv.name
+      });
+    }
+    setHoppingOptions(options);
+  };
+
+  useEffect(() => {
+    loadHops(true);
+  }, []);
 
   return (
     <EuiForm component="form" >
@@ -63,6 +91,24 @@ export function EditServer(props) {
           value={group}
           onChange={(e) => setGroup(e.target.value)} />
       </EuiFormRow>
+
+      <EuiCheckbox id="checkboxUseTunnel"
+        label={t('Use hopping')}
+        checked={useHopping}
+        onChange={(e) => setUseHopping(e.target.checked)}
+      />
+      {useHopping &&
+        <EuiFormRow label={t('Hopping Server')}>
+          <EuiSelect
+            id="useHopSelectServer"
+            options={hoppingOptions}
+            value={hoppingID}
+            onChange={(e) => setHoppingID(e.target.value)}
+            aria-label="use hopping server"
+          />
+        </EuiFormRow>
+      }
+
 
       <EuiFormRow label={t('Server Address')}>
         <EuiFieldText

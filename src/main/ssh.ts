@@ -6,6 +6,7 @@ import { FileDesc, humanFileSize } from './FileDesc';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { getServerConfig } from './conf';
 
 export class SshFetchStats {
     srvStats = new Map<string, LinuxSession>();
@@ -108,6 +109,7 @@ export class SshFetchStats {
             console.log('ssh', login.host, login.port, 'timeout')
         });
 
+        /*
         const connArgs = { ...login };
         if (connArgs.usePassword) {
             connArgs.privateKey = undefined;
@@ -116,8 +118,51 @@ export class SshFetchStats {
         }
         console.log("connecting...", JSON.stringify(connArgs));
         s.conn.connect({ ...connArgs });
+        */
+        this.maybeHoppingConnect(s, s.conn, login);
 
         return s;
+    }
+
+    async maybeHoppingConnect(s: any, conn: any, login: ServerLogins) {
+        const connArgs = { ...login };
+        if (connArgs.usePassword) {
+            connArgs.privateKey = undefined;
+        } else {
+            connArgs.password = undefined;
+        }
+
+        if (login.useHopping) {
+            console.log("use hopping");
+            const hop = await getServerConfig(login.hoppingID);
+            const hopArg = { ...hop };
+            if (hopArg.usePassword) {
+                hopArg.privateKey = undefined;
+            } else {
+                hopArg.password = undefined;
+            }
+            const tmpcon = new Client();
+            tmpcon.on('ready', () => {
+                console.log('FIRST hopping connect ready:', hop.host, hop.port);
+                tmpcon.forwardOut('127.0.0.1', 12345, login.host, login.port, (err, stream) => {
+                    if (err) {
+                        console.log('FIRST: hopping connect error ', hop.host, hop.port);
+                        return tmpcon.end();
+                    }
+                    connArgs.host = undefined;
+                    connArgs.port = undefined;
+
+                    conn.connect({
+                        sock: stream,
+                        ...connArgs,
+                    });
+                });
+            });
+            tmpcon.connect({ ...hopArg });
+            s.extConn = tmpcon;
+        } else {
+            conn.connect({ ...connArgs });
+        }
     }
 
     startSftp(win: any, login: ServerLogins, cnt: number): ShellSession {
@@ -413,7 +458,6 @@ export class SshFetchStats {
 
 
             });
-            // TODO: shell
         });
 
         s.conn.on('close', async () => {
@@ -425,6 +469,7 @@ export class SshFetchStats {
             console.log('ssh', login.host, login.port, 'timeout')
         });
 
+        /*
         const connArgs = { ...login };
         if (connArgs.usePassword) {
             connArgs.privateKey = undefined;
@@ -433,6 +478,9 @@ export class SshFetchStats {
         }
         console.log("connecting...", JSON.stringify(connArgs));
         s.conn.connect({ ...connArgs });
+        */
+
+        this.maybeHoppingConnect(s, s.conn, login);
 
         return s;
     }
@@ -641,6 +689,7 @@ export class SshFetchStats {
             console.log('ssh', s.serverLogins.host, s.serverLogins.port, 'timeout')
         });
 
+        /*
         const connArgs = { ...s.serverLogins };
         if (connArgs.usePassword) {
             connArgs.privateKey = undefined;
@@ -648,6 +697,8 @@ export class SshFetchStats {
             connArgs.password = undefined;
         }
         s.conn.connect({ ...connArgs });
+        */
+        this.maybeHoppingConnect(s, s.conn, s.serverLogins);
     }
 
     closeServer(uuid: string) {
@@ -657,9 +708,9 @@ export class SshFetchStats {
         }
         console.log("closeing", s.serverLogins.name);
         s.conn && s.conn.end();
+        s.extConn && s.extConn.end();
         s.closing = true;
         this.srvStats.delete(uuid);
-
     }
 
     registerServer(ss: ServerLogins, win: any) {
@@ -741,6 +792,7 @@ export class LinuxSession {
     stat: LinuxStat = new LinuxStat()
     serverLogins: ServerLogins
     conn: Client
+    extConn: Client
     closing = false
     prev: PrevData
 }
@@ -761,5 +813,6 @@ export class ShellSession {
     conn: Client
     stream: ClientChannel
     sftp: SFTPWrapper
+    extConn: Client
 }
 
