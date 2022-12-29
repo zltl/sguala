@@ -654,6 +654,7 @@ export class SshFetchStats {
                     dstat.name == 'udev' ||
                     dstat.name == 'none' ||
                     dstat.name == 'overlay' ||
+                    dstat.name == 'shm' ||
                     dstat.name.includes("/dev/loop")) {
                     // skip
                 } else {
