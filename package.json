@@ -1,7 +1,7 @@
 {
   "name": "sguala",
   "productName": "sguala",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Monitor app for linux server.",
   "main": ".webpack/main",
   "scripts": {
