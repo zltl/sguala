@@ -653,7 +653,8 @@ export class SshFetchStats {
                     dstat.name == 'devtmpfs' ||
                     dstat.name == 'udev' ||
                     dstat.name == 'none' ||
-                    dstat.name == 'overlay') {
+                    dstat.name == 'overlay' ||
+                    dstat.name.includes("/dev/loop")) {
                     // skip
                 } else {
                     disks.push(dstat);
