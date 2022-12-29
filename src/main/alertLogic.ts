@@ -2,7 +2,7 @@ import { AlertConfig } from './alertConfig';
 import { loadConfig } from './conf';
 import { SendMail } from './sendEmail';
 import { ServerLogins } from './serverlogins';
-import { LinuxStat } from './ssh';
+import { DiskStat, LinuxStat } from './ssh';
 
 class AlertState {
     conf: AlertConfig
@@ -33,6 +33,7 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
     if (!state || !state.conf.isOpen) {
         return;
     }
+    // console.log('state=', JSON.stringify(state));
     const curts = Math.floor(new Date().valueOf() / 1000);
     const conf = state.conf;
 
@@ -42,7 +43,7 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
                 state.prevUpMatchTs = curts;
             }
             if (curts - state.prevUpMatchTs >= conf.upAlertForValue * 60) {
-                if (curts - state.prevMail >= conf.mailInterval * 60) {
+                if (!state.prevMail || curts - state.prevMail >= conf.mailInterval * 60) {
                     await SendMail(conf, login, stat, false, false, false, true);
                     state.prevMail = curts;
                 }
@@ -60,14 +61,14 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
     let alertDisk = false;
 
     if (conf.cpuCheck) {
-        if (stat.cpuload * 100 > conf.cpuAlertValue) {
+        if (stat.cpuload && stat.cpuload * 100 > conf.cpuAlertValue) {
             if (state.prevCPUMatchTs == 0) {
                 state.prevCPUMatchTs = curts;
             }
             if (curts - state.prevCPUMatchTs >= conf.cpuAlertForValue * 60) {
                 alertCPU = true;
+                state.prevCPUMatchTs = curts;
             }
-            state.prevCPUMatchTs = curts;
         } else {
             state.prevCPUMatchTs = 0;
         }
@@ -80,6 +81,7 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
             }
             if (curts - state.prevMemMatchTs >= conf.memAlertForValue * 60) {
                 alertMem = true;
+                state.prevMemMatchTs = curts;
             }
         } else {
             state.prevMemMatchTs = 0;
@@ -99,6 +101,7 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
             }
             if (curts - state.prevDiskMatchTs >= conf.diskAlertForValue * 60) {
                 alertDisk = true;
+                state.prevDiskMatchTs = curts;
             }
         } else {
             state.prevDiskMatchTs = 0;
@@ -107,8 +110,8 @@ export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boole
     const alertDown = false;
 
     if (alertCPU || alertMem || alertDisk) {
-        console.log('alert host ', login.name);
-        if (curts - state.prevMail >= conf.mailInterval * 60) {
+        console.log('alert host ', login.name, curts - state.prevMail, conf.mailInterval * 60);
+        if (!state.prevMail || curts - state.prevMail >= conf.mailInterval * 60) {
             await SendMail(conf, login, stat, alertCPU, alertMem, alertDisk, alertDown);
             state.prevMail = curts;
         }

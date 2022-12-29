@@ -58,17 +58,17 @@ export function EditAlert(props) {
                 setMemCheck(!!alerts.memCheck);
                 setDiskCheck(!!alerts.diskCheck);
 
-                setCpuAlertValue(alerts.cpuAlertValue);
-                setMemAlertValue(alerts.memAlertValue);
-                setDiskAlertValue(alerts.diskAlertValue);
-                setCpuAlertForValue(alerts.cpuAlertForValue);
-                setMemAlertForValue(alerts.memAlertForValue);
-                setDiskAlertForValue(alerts.diskAlertForValue);
+                setCpuAlertValue(alerts.cpuAlertValue || 90);
+                setMemAlertValue(alerts.memAlertValue || 90);
+                setDiskAlertValue(alerts.diskAlertValue || 90);
+                setCpuAlertForValue(alerts.cpuAlertForValue || 5);
+                setMemAlertForValue(alerts.memAlertForValue || 5);
+                setDiskAlertForValue(alerts.diskAlertForValue || 5);
 
                 setUpCheck(!!alerts.upCheck);
-                setUpAlertForValue(alerts.upAlertForValue);
+                setUpAlertForValue(alerts.upAlertForValue || 5);
 
-                setMailInterval(alerts.mailInterval);
+                setMailInterval(alerts.mailInterval || 120);
             }
         }
         getAlerts();

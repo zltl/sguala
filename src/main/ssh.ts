@@ -734,7 +734,7 @@ export class SshFetchStats {
                 return;
             }
 
-            checkAlert(ss, s.stat, s.stat.online == OnlineStatus.INIT);
+            checkAlert(ss, s.stat, s.stat.online != OnlineStatus.INIT);
 
             if (s.stat.online == OnlineStatus.INIT) {
                 timeoutMiseconds = 1000;

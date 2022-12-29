@@ -56,7 +56,7 @@ export async function loadConfig(): Promise<Config> {
                 "fromPort": 465,
                 "fromSecure": true,
                 "fromEmail": "sguala@163.com",
-                "fromPassword": "FAEUVUZKNWSYHCBI",
+                "fromPassword": "WYJYBKSMVNFYTSRV",
             };
         }
         return res;
@@ -176,6 +176,7 @@ export async function putAlertConfig(arg: AlertConfig) {
         }
     }
     if (!found) {
+        console.log('push alert: ', JSON.stringify(arg));
         config.alerts.push(arg);
     }
     await storeConfig(config);

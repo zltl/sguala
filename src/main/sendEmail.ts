@@ -70,6 +70,7 @@ export async function SendMail(
     // console.log('SendMail: conf:', conf, 'login', login, 'stat', stat, 'cpu', cpu, 'mem', mem, 'disk', disk, 'down', hostDown);
 
     const smtpc = await getSmtpConfig();
+    console.log("smtpc: ", JSON.stringify(smtpc));
 
     const transporter = nodemailer.createTransport({
         host: smtpc.fromHost,
