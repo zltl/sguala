@@ -235,7 +235,7 @@ export function EditAlert(props) {
 
             <EuiSpacer />
             <EuiFieldNumber
-                prepend={t('Alerts email of this server')}
+                prepend={t('Alerts email of this server should not be resend in')}
                 value={mailInterval}
                 onChange={(e) => setMailInterval(parseFloat(e.target.value))}
                 aria-label="select alert value"
