@@ -132,7 +132,7 @@ export function ServerCard(props) {
             position="top"
             content={
               <p>
-                {t("Available size")}
+                {t("Move to Front")}
               </p>
             }
           >
