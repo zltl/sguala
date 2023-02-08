@@ -162,7 +162,10 @@ export class SshFetchStats {
             tmpcon.connect({ ...hopArg });
             s.extConn = tmpcon;
         } else {
-            conn.connect({ ...connArgs });
+            conn.connect({
+                readyTimeout: 30000,
+                ...connArgs
+            });
         }
     }
 
