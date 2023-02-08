@@ -153,6 +153,7 @@ export class SshFetchStats {
                     connArgs.port = undefined;
 
                     conn.connect({
+                        readyTimeout: 30000,
                         sock: stream,
                         ...connArgs,
                     });
