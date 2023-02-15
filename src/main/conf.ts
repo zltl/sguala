@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { AlertConfig } from './alertConfig';
 import { SmtpConfig } from './smtpConfig';
+import { clearAlertsMap } from "./alertLogic";
 
 export class Config {
     version: string = VersionStr()
@@ -163,6 +164,7 @@ export async function delAlertConfig(uuid: string) {
         }
     }
     await storeConfig(config);
+    clearAlertsMap();
 }
 
 export async function putAlertConfig(arg: AlertConfig) {
@@ -180,6 +182,7 @@ export async function putAlertConfig(arg: AlertConfig) {
         config.alerts.push(arg);
     }
     await storeConfig(config);
+    clearAlertsMap();
 }
 
 export async function mergeConfigOpen() {

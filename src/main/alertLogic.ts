@@ -15,6 +15,10 @@ class AlertState {
 
 let alerts: Map<string, AlertState>;
 
+export function clearAlertsMap() {
+    alerts = undefined; 
+}
+
 export async function checkAlert(login: ServerLogins, stat: LinuxStat, up: boolean) {
     if (!alerts) {
         alerts = new Map<string, AlertState>();
