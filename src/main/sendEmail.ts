@@ -28,19 +28,18 @@ const toName = [
 
 const hostDownSubject = [
     '服务器没了',
-    '连不上服务器',
+    '连不上服务器啊',
     '完蛋了'
 ];
 
 const cpuSubject = [
     'CPU转太快了',
-    '处理器超载',
-    '处理器超忙'
+    '处理器超载了'
 ];
 
 const memSubject = [
     '内存满了',
-    '内存不够',
+    '内存不够了',
 ];
 
 const diskSubject = [
