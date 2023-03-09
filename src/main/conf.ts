@@ -1,275 +1,203 @@
-
-import { app, BrowserWindow, dialog } from 'electron';
-import { VersionStr } from './version';
-import { promises as fs } from "fs"
-import { ServerLogins } from './serverlogins';
+import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-
-
+import { app } from 'electron';
 import path from 'path';
-import { AlertConfig } from './alertConfig';
-import { SmtpConfig } from './smtpConfig';
-import { clearAlertsMap } from "./alertLogic";
+
+const version = "2.0.0";
+
+export class Server {
+  uuid: string
+  name: string
+  host: string
+  port: number
+  username: string
+  password?: string
+  usePassword: boolean
+  privateKey?: string
+  updateTime?: string
+
+  useHop?: boolean
+  hopServerUuid?: string
+}
+
+export class ServerGroup {
+  uuid = uuidv4();
+  name: string
+  servers: Server[] = []
+}
+
+export class SmtpConf {
+  fromHost: string
+  fromPort: string
+  fromSecure: boolean
+  fromEmail: string
+  fromPassword: string
+}
+
+export class AlertConf {
+  uuid = uuidv4()
+  isOpen = false
+  toEmail = ''
+  cpuCheck = true
+  memCheck = true
+  diskCheck = true
+  upCheck = true
+  cpuAlertValue = 90
+  memAlertValue = 90
+  diskAlertValue = 90
+  cpuAlertForValue = 1
+  memAlertForValue = 5
+  diskAlertForValue = 5
+  upAlertForValue = 3
+  mailInterval = 120
+  updateTime = new Date().toISOString()
+}
 
 export class Config {
-    version: string = VersionStr()
-    fetchStatInterval: number = 10 * 1000
-    servers: ServerLogins[] = []
-    alerts: AlertConfig[] = []
-    smtpc: SmtpConfig
+  version = version;
+  groups: ServerGroup[] = [{
+    uuid: uuidv4(),
+    name: "Default",
+    servers: [],
+  }];
+  smtp?: SmtpConf;
+  alert?: AlertConf;
+}
+
+export async function confUpgrade() {
+  const legacyPath = path.join(app.getPath('userData'), 'sguala.json');
+  try {
+    await fs.access(legacyPath, fs.constants.R_OK);
+  } catch {
+    return;
+  }
+
+  const oldConfContent = await fs.readFile(legacyPath, 'utf-8');
+  const oldConf = JSON.parse(oldConfContent);
+  const newConf = new Config();
+  for (const s of oldConf.servers) {
+    // add group if not exists
+    let g = newConf.groups.find(g => g.name === s.group);
+    if (!g) {
+      g = new ServerGroup();
+      g.name = s.group;
+      newConf.groups.push(g);
+    }
+    // add server to group
+    const server = new Server();
+    server.uuid = s.uuid;
+    server.name = s.name;
+    server.host = s.host;
+    server.port = s.port;
+    server.username = s.username;
+    server.password = s.password;
+    server.usePassword = s.usePassword;
+    server.privateKey = s.privateKey;
+    server.useHop = s.useHopping;
+    server.hopServerUuid = s.hoppingID;
+    server.updateTime = s.updateTime;
+    g.servers.push(server);
+  }
+
+  newConf.smtp = oldConf.smtpc;
+  newConf.alert = oldConf.alerts;
+
+  await storeConf(newConf);
+  await fs.unlink(legacyPath);
 }
 
 function getConfigFilePath(): string {
-    const userDataPath = app.getPath('userData');
-    const configFilePath = path.join(userDataPath, 'sguala.json');
-    return configFilePath;
+  const userDataPath = app.getPath('userData');
+  const configFilePath = path.join(userDataPath, 'sguala_2.json');
+  return configFilePath;
 }
+
+const configFilePath = getConfigFilePath();
+let config = new Config();
+const serverUuidMap = new Map<string, Server>();
+const groupUuidMap = new Map<string, ServerGroup>();
+updateMaps();
+
+function updateMaps() {
+  serverUuidMap.clear();
+  groupUuidMap.clear();
+  for (const g of config.groups) {
+    groupUuidMap.set(g.uuid, g);
+    for (const s of g.servers) {
+      serverUuidMap.set(s.uuid, s);
+    }
+  }
+}
+
+(async () => {
+  console.log('configFilePath=', configFilePath);
+  try {
+    await fs.access(configFilePath, fs.constants.R_OK);
+  } catch {
+    // file not exists
+    await storeConf(config);
+  }
+  for await (const e of fs.watch(configFilePath)) {
+    if (e.filename) {
+      console.log("config file changed", e.eventType, e.filename);
+      await loadConfig();
+    }
+  }
+})();
 
 export async function loadConfig(): Promise<Config> {
-    try {
-        const configFilePath = getConfigFilePath();
-        const content = await fs.readFile(configFilePath, 'utf8');
-        console.log("loading config from ", configFilePath)
-        const res = JSON.parse(content);
-        if (!res.alerts) {
-            res.alerts = [{
-                // insert default rule if empty
-                "uuid": "0",
-                "isOpen": false,
-                "toEmail": "",
-                "cpuCheck": false,
-                "memCheck": false,
-                "diskCheck": false,
-                "upCheck": false,
-                "cpuAlertValue": 90,
-                "memAlertValue": 90,
-                "diskAlertValue": 90,
-                "cpuAlertForValue": 5,
-                "memAlertForValue": 5,
-                "diskAlertForValue": 5,
-                "upAlertForValue": 5,
-                "mailInterval": 120
-            }];
-        }
-        if (!res.smtpc) {
-            res.smtpc = {
-                "fromHost": "smtp.163.com",
-                "fromPort": 465,
-                "fromSecure": true,
-                "fromEmail": "sguala@163.com",
-                "fromPassword": "WYJYBKSMVNFYTSRV",
-            };
-        }
-        return res;
-    } catch (e: any) {
-        console.log("err: ", e);
-        return new Config();
-    }
+
+  try {
+    await fs.access(configFilePath, fs.constants.R_OK);
+  } catch {
+    // file not exists
+    return config;
+  }
+
+  try {
+    const data = await fs.readFile(configFilePath, 'utf-8');
+    config = JSON.parse(data) as Config;
+    updateMaps();
+    return config;
+  } catch (e) {
+    console.log("loadConfig error", e);
+    return config;
+  }
 }
 
-export async function storeConfig(config: Config) {
-    const configFilePath = getConfigFilePath();
-    const content = JSON.stringify(config, null, 2);
-    console.log('writing config to ', configFilePath);
-    await fs.writeFile(configFilePath, content, 'utf8');
+export function getConfig() {
+  return config;
 }
 
-export async function putServerConfig(arg: ServerLogins) {
-    const config = await loadConfig();
-    if (!arg.uuid) {
-        arg.uuid = uuidv4();
-        config.servers.push(arg);
-    } else {
-        for (let i = 0; i < config.servers.length; ++i) {
-            if (config.servers[i].uuid == arg.uuid) {
-                config.servers[i] = arg;
-                break;
-            }
-        }
-    }
-    await storeConfig(config);
+export async function storeConf(cc: Config) {
+  const data = JSON.stringify(cc, null, 2);
+  config = cc;
+  await fs.writeFile(configFilePath, data, 'utf-8');
 }
 
-export async function delServerConfig(uuid: string) {
-    console.log("uuid=", uuid);
-    const config = await loadConfig();
-    for (let i = 0; i < config.servers.length; ++i) {
-        if (config.servers[i].uuid == uuid) {
-            config.servers.splice(i, 1);
-            break;
-        }
-    }
-    await storeConfig(config);
-}
+export default {
+  Config,
+  Server,
+  ServerGroup,
 
-export async function getServerConfig(uuid: string): Promise<ServerLogins> {
-    const config = await loadConfig();
-    for (let i = 0; i < config.servers.length; ++i) {
-        if (config.servers[i].uuid == uuid) {
-            return config.servers[i];
-        }
-    }
-    return undefined;
-}
+  load: async () => {
+    return await loadConfig();
+  },
 
-export async function moveFront(uuid: string) {
-    const config = await loadConfig();
+  get: () => {
+    return config;
+  },
 
-    for (let i = 0; i < config.servers.length; ++i) {
-        if (config.servers[i].uuid == uuid) {
-            if (i == 0) {
-                return;
-            }
-            const tmp = config.servers[i - 1];
-            config.servers[i - 1] = config.servers[i];
-            config.servers[i] = tmp;
-            await storeConfig(config);
-            return;
-        }
-    }
-}
+  store: async (c: Config) => {
+    await storeConf(c);
+  },
 
-export async function getAlertConfig(uuid: string): Promise<AlertConfig> {
-    const config = await loadConfig();
-    for (let i = 0; i < config.alerts.length; ++i) {
-        if (config.alerts[i].uuid == uuid) {
-            return config.alerts[i];
-        }
-    }
-    if (config.alerts.length > 0) {
-        return config.alerts[config.alerts.length - 1];
-    }
-    return undefined;
-}
+  getGroup: (uuid: string): ServerGroup => {
+    return groupUuidMap.get(uuid);
+  },
 
-export async function getSmtpConfig(): Promise<SmtpConfig> {
-    const config = await loadConfig();
-    return config.smtpc;
-}
+  getServer: (uuid: string): Server => {
+    return serverUuidMap.get(uuid);
+  },
 
-export async function putSmtpConfig(arg: SmtpConfig) {
-    const config = await loadConfig();
-    config.smtpc = arg;
-    await storeConfig(config);
-}
-
-
-
-export async function delAlertConfig(uuid: string) {
-    const config = await loadConfig();
-    for (let i = 0; i < config.alerts.length; ++i) {
-        if (config.alerts[i].uuid == uuid) {
-            config.servers.splice(i, 1);
-            break;
-        }
-    }
-    await storeConfig(config);
-    clearAlertsMap();
-}
-
-export async function putAlertConfig(arg: AlertConfig) {
-    const config = await loadConfig();
-    let found = false;
-    for (let i = 0; i < config.alerts.length; ++i) {
-        if (config.alerts[i].uuid == arg.uuid) {
-            config.alerts[i] = arg;
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        console.log('push alert: ', JSON.stringify(arg));
-        config.alerts.push(arg);
-    }
-    await storeConfig(config);
-    clearAlertsMap();
-}
-
-export async function mergeConfigOpen() {
-    const result = await dialog.showOpenDialog({
-        properties: ['openFile'],
-        filters: [
-            { name: 'Json', extensions: ['json'] },
-            { name: 'All Files', extensions: ['*'] },
-        ],
-        title: '导入配置文件',
-    });
-    if (result.canceled) {
-        return;
-    }
-    result.filePaths.forEach(async (fname) => {
-        console.log('loading config file', fname);
-        const content = await fs.readFile(fname, 'utf8');
-        mergeConfig(content);
-    });
-}
-
-export async function exportConfigOpen() {
-    const pwd = await fs.realpath('.');
-    const result = await dialog.showSaveDialog({
-        title: '选择导出配置文件位置',
-        defaultPath: path.join(pwd, './sguala-config.json'),
-        properties: ['showHiddenFiles']
-    });
-    if (result.canceled) {
-        return;
-    }
-    let targetPath = result.filePath;
-    try {
-        const tartgetStat = await fs.stat(targetPath);
-        if (tartgetStat.isDirectory()) {
-            targetPath = path.join(targetPath, 'sguala-config.json');
-        }
-    } catch {
-        console.log('not exists, may create');
-    }
-    const config = await loadConfig();
-    const content = JSON.stringify(config, null, 2);
-    console.log('writing config to ', targetPath);
-    await fs.writeFile(targetPath, content, 'utf8');
-}
-
-
-export async function mergeConfig(newText: string): Promise<string> {
-    const clipText = newText;
-    const clipObj = JSON.parse(clipText);
-    const config = await loadConfig();
-    try {
-        for (let i = 0; i < clipObj.servers.length; i++) {
-            let found = false;
-            const cs = clipObj.servers[i];
-            for (let j = 0; j < config.servers.length; j++) {
-                const ss = config.servers[j];
-                if (cs.uuid == ss.uuid) {
-                    found = true;
-                    config.servers[j] = cs;
-                }
-            }
-            if (!found) {
-                config.servers.push(cs);
-            }
-        }
-        for (let i = 0; i < clipObj.alerts.length; i++) {
-            let found = false;
-            const cs = clipObj.servers[i];
-            if (cs.uuid == "0") {
-                continue;
-            }
-            for (let j = 0; j < config.alerts.length; j++) {
-                const ss = config.alerts[j];
-                if (cs.uuid == ss.uuid) {
-                    found = true;
-                    config.alerts[j] = cs;
-                }
-            }
-            if (!found) {
-                config.alerts.push(cs);
-            }
-        }
-        await storeConfig(config);
-    } catch (e) {
-        console.log("e merge Config", e);
-        return String(e);
-    }
-}
-
+};

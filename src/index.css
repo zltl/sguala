@@ -1,0 +1,12 @@
+
+html,
+body {
+    height: 100%;
+}
+
+.HideScrollBarKeepFunctionality {
+  scrollbar-width: none;  /* Firefox */
+}
+.HideScrollBarKeepFunctionality::-webkit-scrollbar {
+  display: none;
+}

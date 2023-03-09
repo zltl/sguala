@@ -1,0 +1,20 @@
+/*
+   We hide the frame of window. need to
+   make the titleBar grabable.
+ */
+ .DragableRegion {
+  -webkit-app-region: drag;
+}
+
+.DragableRegionExcept {
+  -webkit-app-region: no-drag;
+}
+
+.hidescrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hidescrollbar::-webkit-scrollbar {
+  display: none;
+}

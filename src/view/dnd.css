@@ -1,0 +1,8 @@
+.dragover {
+  background-color: purple;
+  border: 5px solid red;
+}
+
+.dnd-box {
+  cursor: move;
+}
