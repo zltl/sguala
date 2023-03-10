@@ -8,6 +8,12 @@ export function initIpc() {
     return conf.get();
   });
 
+  ipcMain.handle('conf-get-server', (event, uuid: string) => {
+    const r = conf.getServer(uuid);
+    console.log("RRRRRRRRRRRR: ", JSON.stringify(r));
+    return r;
+  });
+
   ipcMain.handle('conf-validate-group-duplicated', (event, gname: string) => {
     const c = conf.get();
     for (const g of c.groups) {
@@ -76,7 +82,7 @@ export function initIpc() {
     const g = c.groups[index];
     c.groups.splice(index, 1);
     g.servers.forEach(s => {
-      SshRemote.deleteServerClient({ ...s, windowId: event.sender.id })
+      SshRemote.deleteServerClient({ ...s, windowId: 0 })
     });
 
     await conf.store(c);
@@ -112,7 +118,7 @@ export function initIpc() {
     const server = g.servers[index];
     g.servers.splice(index, 1);
 
-    SshRemote.deleteServerClient({ ...server, windowId: event.sender.id });
+    await SshRemote.deleteServerClient({ ...server, windowId: 0 });
     await conf.store(conf.get());
     await conf.load();
     return { type: 'ok' };
@@ -127,12 +133,26 @@ export function initIpc() {
 
     const remote = SshRemote.client({
       ...server,
-      windowId: event.sender.id,
+      windowId: 0,
     });
 
     const stat = await remote.getStat();
     console.log(`remote-server-stat response: `, JSON.stringify(stat));
     return stat;
+  });
+
+  ipcMain.handle('remote-shell', async (event, serverUuid: any, cnt: number) => {
+    console.log("remote-shell: ", serverUuid, cnt);
+    const shell = SshRemote.getShellClient(cnt, serverUuid);
+    if (!shell) {
+      console.log('error not found shell');
+      return { type: 'error', message: 'Shell not exists, open failed' };
+    }
+
+    await shell.connect();
+    await shell.shell();
+
+    return { type: 'ok' };
   });
 
   ipcMain.handle('conf-move-group', async (event, item: string, target: string) => {

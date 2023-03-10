@@ -5,13 +5,11 @@ import { app } from 'electron';
 import { initIpc } from "./initIpc";
 
 (async () => {
-  await confUpgrade();
-
-  await conf.load();
-
-  initIpc();
-
   if (process.argv.includes("--test")) {
+    await confUpgrade();
+    await conf.load();
+    initIpc();
+  
     console.log('starting test');
     app.quit();
     require('./test');

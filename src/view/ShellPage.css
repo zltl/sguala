@@ -2,7 +2,7 @@
    We hide the frame of window. need to
    make the titleBar grabable.
  */
- .DragableRegion {
+.DragableRegion {
   -webkit-app-region: drag;
 }
 
@@ -17,4 +17,9 @@
 
 .hidescrollbar::-webkit-scrollbar {
   display: none;
+}
+
+.FullSize {
+  width: 100%;
+  height: 100%;
 }

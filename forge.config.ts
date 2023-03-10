@@ -26,6 +26,14 @@ const config: ForgeConfig = {
               js: './src/preload.ts',
             },
           },
+          {
+            html: './src/term.html',
+            js: './src/termRenderer.ts',
+            name: 'shell_window',
+            preload: {
+              js: './src/preload.ts',
+            },
+          }
         ],
       },
     }),

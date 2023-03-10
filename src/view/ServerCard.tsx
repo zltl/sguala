@@ -66,6 +66,10 @@ export function ServerCard(props: ServerCardProps) {
     props.reloadConf();
   };
 
+  const startShell = async () => {
+    await main.remote.shellWindow(server.uuid);
+  }
+
   React.useEffect(() => {
 
     updateInfoLoop();
@@ -125,8 +129,10 @@ export function ServerCard(props: ServerCardProps) {
         return;
       }
       console.log('drop item:', JSON.stringify(item));
-      main.conf.moveServer(item.groupUuid, item.uuid, server.groupUuid, server.uuid);
-      props.reloadConf();
+      (async () => {
+        await main.conf.moveServer(item.groupUuid, item.uuid, server.groupUuid, server.uuid);
+        props.reloadConf();
+      })();
     },
     collect: monitor => ({
       isOver: !!monitor.isOver(),
@@ -155,7 +161,7 @@ export function ServerCard(props: ServerCardProps) {
 
             <Box display='inline-flex'><DriveFileMoveIcon color="disabled" /> </Box>
 
-            <Box display='inline-flex'><TerminalIcon color="disabled" /> </Box>
+            <Box display='inline-flex' onClick={() => startShell()}><TerminalIcon color="disabled" /> </Box>
 
             <Box display='inline-flex' onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon color="disabled" /> </Box>
           </Box>}

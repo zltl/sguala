@@ -1,5 +1,6 @@
 // helper functions to get info from host
 
+import { ipcMain } from "electron";
 import ssh2, { Client } from "ssh2";
 
 export class SshClientMapKey {
@@ -80,6 +81,7 @@ export class SshClient {
   isShell: boolean
   state = SshClientState.Disconnected;
   err: any;
+  win: any;
   env = {
     'PATH': '$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin',
     'TERM': 'xterm-256color',
@@ -139,6 +141,70 @@ export class SshClient {
     });
   }
 
+  shell = async (): Promise<void> => {
+    const chanKey = `SHELL_CHANNEL_${this.opts.uuid}/${this.opts.windowId}`;
+    const win = this.win;
+    if (this.state !== SshClientState.Connected) {
+      console.log("ssh client not connected");
+      // connect first
+      if (this.state === SshClientState.Disconnected) {
+        console.log('disconnected, try connect');
+        // async connect, then error
+        this.state = SshClientState.Connecting;
+        await this.connect();
+      } else {
+        console.log('connecting');
+        throw new Error("ssh client not connected");
+      }
+    }
+    // start shell
+    return new Promise((resolve, reject) => {
+      this.c.shell({ env: this.env }, (err, stream) => {
+        if (err) {
+          console.log('shell error:', err);
+          reject(err);
+          return;
+        }
+
+        win.setSize(800, 400);
+        ipcMain.on(chanKey, async (ev, data) => {
+          if (data.op === 'data') {
+            stream.write(data.data);
+          } else if (data.op === 'resize') {
+            stream.setWindow(data.rows, data.cols, '', '');
+          }
+        });
+        
+        stream.on('close', () => {
+          ipcMain.removeAllListeners(chanKey);
+          console.log('shell closed');
+          try {
+            win.send(chanKey, {
+              'op': 'data',
+              'data': 'session closed',
+            });  
+          } catch (e) {
+            console.log('session close send error', e);
+          }
+        });
+        stream.on('data', (data: any) => {
+          try {
+            win.send(chanKey, {
+              'op': 'data',
+              'data': data,
+            });
+          } catch (e) {
+            console.log('session data send error', e);
+          }
+        });
+        stream.on('error', (err: any) => {
+          console.log('error...');
+        });
+        resolve();
+      });
+    });
+  }
+
   exec = async (cmd: string): Promise<RunOutput> => {
     console.log(`exec: ${cmd}, on server ${this.opts.host}`);
     if (this.state !== SshClientState.Connected) {
@@ -182,13 +248,18 @@ export class SshClient {
   }
 
   close = async (): Promise<void> => {
-    SshRemote.deleteClient(this.mkeyStr());
+    if (this.isShell) {
+      SshRemote.deleteShellClient(this.mkeyStr());
+    } else {
+      SshRemote.deleteClient(this.mkeyStr());
+    }
     return new Promise((resolve, reject) => {
       this.c.on("close", () => {
         console.log("ssh close");
         resolve();
       });
       this.c.end();
+      this.c.destroy();
     });
   }
 
@@ -391,13 +462,54 @@ export class SshRemote {
     return c;
   }
 
+  static shell(opts: SshConnectOptions, win: any): SshClient {
+    const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
+    const mkeyStr = mkey.toString();
+    console.log(`SshRemote.client.key: ${mkeyStr}`);
+    if (this.shellMap.has(mkeyStr)) {
+      console.log(`SshRemote.client: ${mkeyStr} found`);
+      return this.shellMap.get(mkeyStr);
+    }
+
+    console.log(`SshRemote.client: ${mkeyStr} not found, new one`);
+    const c = new SshClient(null, opts, true);
+    c.win = win;
+    this.shellMap.set(mkeyStr, c);
+
+    return c;
+  }
+
+  static getShellClient(winid: number, serverid: string): SshClient {
+    const mkey = new SshClientMapKey(winid, serverid);
+    const mkeyStr = mkey.toString();
+    if (this.shellMap.has(mkeyStr)) {
+      return this.shellMap.get(mkeyStr);
+    }
+    return null;
+  }
+
   static deleteClient(mkeyStr: string) {
     this.clientMap.delete(mkeyStr);
   }
-  static deleteServerClient(opts: SshConnectOptions) {
+  static async deleteServerClient(opts: SshConnectOptions) {
     const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
     const mkeyStr = mkey.toString();
-    this.deleteClient(mkeyStr);
+    const c = this.clientMap.get(mkeyStr);
+    if (c) {
+      await c.close();
+    }
+  }
+
+  static deleteShellClient(mkeyStr: string) {
+    this.shellMap.delete(mkeyStr);
+  }
+  static async deleteShellServerClient(opts: SshConnectOptions) {
+    const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
+    const mkeyStr = mkey.toString();
+    const c = this.shellMap.get(mkeyStr);
+    if (c) {
+      await c.close();
+    }
   }
 }
 

@@ -27,8 +27,10 @@ export function ServerGroupEnd({ reloadConf }: { reloadConf: () => void }) {
     accept: 'group',
     drop: (item: any) => {
       console.log('drop item to end:', JSON.stringify(item));
-      main.conf.moveGroup(item.uuid, 'end');
-      reloadConf();
+      (async () => {
+        await main.conf.moveGroup(item.uuid, 'end');
+        reloadConf();
+      })();
     },
     collect: monitor => ({
       isOver: !!monitor.isOver(),
@@ -51,10 +53,10 @@ export function ServerGroup(props: Props) {
   const [editing, setEditing] = React.useState(false);
   const [groupName, setGroupName] = React.useState(group.name);
 
-  const setExpanded = (open: boolean) => {
+  const setExpanded = async (open: boolean) => {
     stSetExpanded(open);
     group.tabOpening = open;
-    main.conf.openGroupTab(group.uuid, open);
+    await main.conf.openGroupTab(group.uuid, open);
   };
 
   const updateGroupName = async () => {
@@ -90,8 +92,10 @@ export function ServerGroup(props: Props) {
         return;
       }
       console.log('drop item:', JSON.stringify(item));
-      main.conf.moveGroup(item.uuid, group.uuid);
-      props.reloadConf();
+      (async () => {
+        await main.conf.moveGroup(item.uuid, group.uuid);
+        props.reloadConf();
+      })();
     },
     collect: monitor => ({
       isOver: !!monitor.isOver(),
@@ -102,8 +106,10 @@ export function ServerGroup(props: Props) {
     accept: 'server',
     drop: (item: any) => {
       console.log('drop item end:', JSON.stringify(item));
-      main.conf.moveServer(item.groupUuid, item.uuid, group.uuid, 'end');
-      props.reloadConf();
+      (async () => {
+        main.conf.moveServer(item.groupUuid, item.uuid, group.uuid, 'end');
+        props.reloadConf();
+      })();
     },
     collect: monitor => ({
       isServerOver: !!monitor.isOver(),

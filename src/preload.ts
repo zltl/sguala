@@ -26,12 +26,16 @@ contextBridge.exposeInMainWorld('main', {
   },
 
   conf: {
-    get: () => {
-      return ipcRenderer.invoke('conf-get');
+    get: async () => {
+      return await ipcRenderer.invoke('conf-get');
     },
 
-    validateGroupDuplicated: (gname: string) => {
-      return ipcRenderer.invoke('conf-validate-group-duplicated', gname);
+    getServer: async (uuid: string) => {
+      return await ipcRenderer.invoke('conf-get-server', uuid);
+    },
+
+    validateGroupDuplicated: async (gname: string) => {
+      return await ipcRenderer.invoke('conf-validate-group-duplicated', gname);
     },
 
     addGroup: async (gname: string) => {
@@ -72,7 +76,22 @@ contextBridge.exposeInMainWorld('main', {
   remote: {
     getServerStat: async (serverUuid: any): Promise<any> => {
       return await ipcRenderer.invoke('remote-server-stat', serverUuid);
-    }
+    },
+
+    shell: async (serverUuid: string, cnt: number): Promise<any> => {
+      return await ipcRenderer.invoke('remote-shell', serverUuid, cnt);
+    },
+
+    shellWindow: async (serverUuid: string): Promise<any> => {
+      return await ipcRenderer.invoke('shell-window', serverUuid);
+    },
   }
 
 });
+
+contextBridge.exposeInMainWorld('ipc', {
+  'send': (chan: string, data: any) => ipcRenderer.send(chan, data),
+  'on': (chan: string, fn: any) => ipcRenderer.on(chan, fn),
+  'clear': (chan: string) => ipcRenderer.removeAllListeners(chan),
+});
+
