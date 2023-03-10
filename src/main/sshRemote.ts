@@ -39,12 +39,19 @@ export class DiskStat {
 }
 
 export interface SshConnectOptions {
-  host: string;
-  port: number;
-  username: string;
-  password?: string;
-  privateKey?: string;
-  uuid: string;
+  uuid: string
+  name: string
+  host: string
+  port: number
+  username: string
+  password?: string
+  usePassword: boolean
+  privateKey?: string
+  updateTime?: string
+
+  useHop?: boolean
+  hopServerUuid?: string
+
   windowId: number
 }
 
@@ -136,6 +143,13 @@ export class SshClient {
         console.log("connect: ssh end");
         this.state = SshClientState.Disconnected;
       });
+
+      const opts = structuredClone(this.opts);
+      if (opts.usePassword) {
+        opts.privateKey = undefined;
+      } else {
+        opts.password = undefined;
+      }
 
       this.c.connect(this.opts);
     });
