@@ -91,9 +91,9 @@ export function ServerCard(props: ServerCardProps) {
 
   const memTotal = mem?.total;
   const memAvail = mem?.avail;
-  const memUsed = mem?.total - mem?.avail;
-  const memRate = mem?.avail / mem?.total * 100;
-  const memRateBuffer = (mem?.total - mem?.free) / mem?.total * 100;
+  const memUsed = memTotal - memAvail;
+  const memRate = memUsed / mem?.total * 100;
+  const memRateBuffer = (memTotal - mem?.free) / mem?.total * 100;
 
   const calcColor = (rate: number): "primary" | "secondary" | "error" | "info" | "success" | "warning" | "inherit" => {
     if (rate > 90) {
@@ -153,7 +153,7 @@ export function ServerCard(props: ServerCardProps) {
       sx={{ ...overSx }} ref={drop}>
       <Box>
         <Box ref={dragRef}>
-          {mouseEnter && <Box sx={{ '& > :not(style)': { mr: 2 } }} >
+          <Box sx={{ '& > :not(style)': { mr: 2 }, opacity: mouseEnter ? 1 : 0 }} >
             <Box display='inline-flex'>
               <DragIndicatorIcon color="disabled" />
             </Box>
@@ -164,7 +164,7 @@ export function ServerCard(props: ServerCardProps) {
             <Box display='inline-flex' onClick={() => startShell()}><TerminalIcon color="disabled" /> </Box>
 
             <Box display='inline-flex' onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon color="disabled" /> </Box>
-          </Box>}
+          </Box>
           <Typography color={colorByOnline()} variant='h6'>{server.name}</Typography>
         </Box>
         <Typography variant='caption'>{server.username + "@" + server.host + ":" + server.port}</Typography>

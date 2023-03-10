@@ -151,17 +151,17 @@ export function ServerGroup(props: Props) {
             {!editing &&
               <>
                 <Box display='inline-flex' sx={{ width: '100%' }}>
-                  {mouseEnter && <Box sx={{ marginRight: 1 }}>
+                  <Box sx={{ marginRight: 1, opacity: mouseEnter ? 1 : 0 }}>
                     <DragIndicatorIcon color="disabled" />
-                  </Box>}
-                  <Typography sx={{ width: '33%' }} >{groupName}</Typography>
+                  </Box>
+                  <Typography >{groupName}</Typography>
 
-                  {mouseEnter && <Box sx={{ marginLeft: 2, marginRight: 2 }} onClick={() => { setEditing(true) }}>
+                  <Box sx={{ marginLeft: 2, marginRight: 2, opacity: mouseEnter ? 1 : 0 }} onClick={() => { setEditing(true) }}>
                     <EditIcon color="disabled" />
-                  </Box>}
-                  {mouseEnter && <Box sx={{ float: 'right' }} >
+                  </Box>
+                  <Box sx={{ float: 'right', opacity: mouseEnter ? 1 : 0 }} >
                     <DeleteIcon color="disabled" onClick={() => { deleteGroup() }} />
-                  </Box>}
+                  </Box>
                 </Box>
               </>}
             {editing && <Box sx={{ width: '100%' }}>
