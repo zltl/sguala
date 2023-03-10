@@ -9,6 +9,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 
 import { useTranslation } from 'react-i18next';
 import { Observer } from './Observer';
@@ -148,52 +150,54 @@ export function ServerCard(props: ServerCardProps) {
   }
 
   return (
-    <Box onMouseEnter={() => { setMouseEnter(true) }}
-      onMouseLeave={() => { setMouseEnter(false) }}
-      sx={{ ...overSx }} ref={drop}>
-      <Box>
-        <Box ref={dragRef}>
-          <Box sx={{ '& > :not(style)': { mr: 2 }, opacity: mouseEnter ? 1 : 0 }} >
-            <Box display='inline-flex'>
-              <DragIndicatorIcon color="disabled" />
-            </Box>
-            <Box display='inline-flex' onClick={() => gotoEditServer()}><EditIcon color="disabled" /> </Box>
+    <Card sx={{ ...overSx }}>
+      <CardContent>
+        <Box onMouseEnter={() => { setMouseEnter(true) }}
+          onMouseLeave={() => { setMouseEnter(false) }}
+          sx={{ cursor: 'move' }} ref={drop}>
+          <Box ref={dragRef}>
+            <Typography color={colorByOnline()} variant='h6'>{server.name}</Typography>
+            {!mouseEnter && <Typography variant='caption' >{server.username + "@" + server.host + ":" + server.port}</Typography>}
+            {mouseEnter && <Box sx={{ cursor: 'default' }}>
+              <Box>
+                <Box display='flex' >
+                  <Box sx={{ mr: 2 }}> <DragIndicatorIcon color="disabled" /> </Box>
+                  <Box sx={{ mr: 2 }} onClick={() => gotoEditServer()}><EditIcon color="primary" /> </Box>
+                  <Box sx={{ mr: 2 }}><DriveFileMoveIcon color="primary" /> </Box>
+                  <Box sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon color="primary" /> </Box>
 
-            <Box display='inline-flex'><DriveFileMoveIcon color="disabled" /> </Box>
-
-            <Box display='inline-flex' onClick={() => startShell()}><TerminalIcon color="disabled" /> </Box>
-
-            <Box display='inline-flex' onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon color="disabled" /> </Box>
+                  <Box onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon color="primary" /> </Box>
+                </Box>
+              </Box>
+            </Box>}
           </Box>
-          <Typography color={colorByOnline()} variant='h6'>{server.name}</Typography>
+
+          <Box>
+            <Typography color="text.disabled" variant='caption'>{t('CPU')}: {cpu.toFixed(2)}%</Typography>
+            <MyLinearProgress color={calcColor(cpu)} variant='determinate' value={cpu} valueBuffer={0} />
+          </Box>
+
+          <Box>
+            <Typography color="text.disabled" variant='caption'>{t('Memory')}: {" "}
+              {memRate.toFixed(2)}%
+              - {humanFileSize(memUsed)}/{humanFileSize(memTotal)}</Typography>
+            <MyLinearProgress color={calcColor(memRate)} variant='buffer' value={memRate} valueBuffer={memRateBuffer} />
+          </Box>
+
+          {
+            disks?.map((disk: any) => {
+              const rate = (disk.total - disk.avail) / disk.total * 100;
+              return (
+                <Box key={disk.name}>
+                  <Typography color="text.disabled" variant='caption'>
+                    {t('Disk')}({disk.name}) {(rate).toFixed(2)}% - {humanFileSize(disk.total - disk.avail)}/{humanFileSize(disk.total)}</Typography>
+                  <MyLinearProgress color={calcColor(rate)} variant='determinate' value={rate} valueBuffer={0} />
+                </Box>
+              );
+            })
+          }
         </Box>
-        <Typography variant='caption'>{server.username + "@" + server.host + ":" + server.port}</Typography>
-      </Box>
-
-      <Box>
-        <Typography color="text.disabled" variant='caption'>{t('CPU')}: {cpu.toFixed(2)}%</Typography>
-        <MyLinearProgress color={calcColor(cpu)} variant='determinate' value={cpu} valueBuffer={0} />
-      </Box>
-
-      <Box>
-        <Typography color="text.disabled" variant='caption'>{t('Memory')}: {" "}
-          {memRate.toFixed(2)}%
-          - {humanFileSize(memUsed)}/{humanFileSize(memTotal)}</Typography>
-        <MyLinearProgress color={calcColor(memRate)} variant='buffer' value={memRate} valueBuffer={memRateBuffer} />
-      </Box>
-
-      {
-        disks?.map((disk: any) => {
-          const rate = (disk.total - disk.avail) / disk.total * 100;
-          return (
-            <Box key={disk.name}>
-              <Typography color="text.disabled" variant='caption'>
-                {t('Disk')}({disk.name}) {(rate).toFixed(2)}% - {humanFileSize(disk.total - disk.avail)}/{humanFileSize(disk.total)}</Typography>
-              <MyLinearProgress color={calcColor(rate)} variant='determinate' value={rate} valueBuffer={0} />
-            </Box>
-          );
-        })
-      }
-    </Box>
+      </CardContent>
+    </Card>
   )
 }

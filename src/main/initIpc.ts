@@ -48,11 +48,13 @@ export function initIpc() {
   ipcMain.handle('conf-add-server', async (event, s: any) => {
     console.log('conf-add-server', JSON.stringify(s));
     const c = conf.get();
+    // g is the target group
     const g = conf.getGroup(s.groupUuid);
     if (!g) {
       console.log('error not found group');
       return { type: 'error', message: 'Group not exists, add server failed' };
     }
+
     if (!s.uuid || s.uuid === '') {
       // new server
       s.uuid = uuidv4();
@@ -60,12 +62,16 @@ export function initIpc() {
       g.servers.push(server);
       console.log('server add ok: ', JSON.stringify(server));
     } else {
-      // update server
-      const server = conf.getServer(s.uuid);
-      if (!server) {
+      // update server: delete first, then add
+      const index = g.servers.findIndex(s => s.uuid === s.uuid);
+      if (index < 0) {
         console.log('error not found server');
         return { type: 'error', message: 'Server not exists, update failed' };
       }
+      g.servers.splice(index, 1);
+      const server = s as Server;
+      g.servers.push(server);
+      console.log('server update ok: ', JSON.stringify(server));
     }
     await conf.store(c);
     await conf.load();

@@ -18,17 +18,13 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
-import { DrawerHeader } from './DrawerHeader';
 import { useTranslation } from 'react-i18next';
 
 import './ShellPage.css';
 
 const drawerWidth = 240;
 
-
 interface Props {
-  handleDrawerClose: () => void;
-  open: boolean;
   pages: { name: string, page: React.ReactNode, icon: React.ReactNode }[];
   curPageName: string;
 }
@@ -37,31 +33,7 @@ export function ShellDrawer(props: Props) {
   const theme = useTheme();
   const { t, i18n } = useTranslation();
 
-  const open = props.open;
-
-  const handleDrawerClose = props.handleDrawerClose;
-
-  return (<Drawer
-    sx={{
-      width: drawerWidth,
-      flexShrink: 0,
-      '& .MuiDrawer-paper': {
-        width: drawerWidth,
-        boxSizing: 'border-box',
-      },
-    }}
-    variant="persistent"
-    anchor="left"
-    open={open}
-  >
-    <DrawerHeader
-      className='DragableRegion'>
-      <IconButton onClick={handleDrawerClose}
-        className="DragableRegionExcept">
-        {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-      </IconButton>
-    </DrawerHeader>
-    <Divider />
+  return (
     <List>
       {
         props.pages.map((page, index) => (
@@ -76,6 +48,16 @@ export function ShellDrawer(props: Props) {
         ))
       }
     </List>
-  </Drawer>
   );
 }
+
+/*
+    <DrawerHeader
+      className='DragableRegion'>
+      <IconButton onClick={handleDrawerClose}
+        className="DragableRegionExcept">
+        {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+      </IconButton>
+    </DrawerHeader>
+
+*/

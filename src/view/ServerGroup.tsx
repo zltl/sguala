@@ -9,13 +9,14 @@ import { ServerCard } from './ServerCard';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { Box } from '@mui/system';
 import { useDrag, useDrop } from 'react-dnd'
-import LinearProgress from '@mui/material/LinearProgress';
-import { blue } from '@mui/material/colors';
+import LinearProgress, { linearProgressClasses } from '@mui/material/LinearProgress';
+import { blue, lightBlue } from '@mui/material/colors';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ClickAwayListener from '@mui/base/ClickAwayListener';
 import TextField from '@mui/material/TextField';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '@mui/material/styles';
 
 interface Props {
   group: { name: string, uuid: string, tabOpening?: boolean, servers: any[] };
@@ -131,64 +132,61 @@ export function ServerGroup(props: Props) {
     return <Box ref={dragPreviewRef}
       sx={{ width: '100%', height: '50px', backgroundColor: blue[50] }}></Box>
   }
-
   return (
-    <Box style={{ opacity }}>
+    <Box sx={{ opacity }}>
       <Box ref={drop}>
         {isOver && <LinearProgress variant="determinate" color="secondary" value={0} />}
-        <Accordion expanded={expanded} onChange={
-          (event, isExpanded) => {
-            setExpanded(isExpanded);
-          }} >
-          <AccordionSummary
-            onMouseEnter={() => { setMouseEnter(true) }}
-            onMouseLeave={() => { setMouseEnter(false) }}
-            ref={dragRef}
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel1a-content"
-            id="panel1a-header"
-            sx={{ cursor: 'move' }}>
-            {!editing &&
-              <>
-                <Box display='inline-flex' sx={{ width: '100%' }}>
-                  <Box sx={{ marginRight: 1, opacity: mouseEnter ? 1 : 0 }}>
-                    <DragIndicatorIcon color="disabled" />
-                  </Box>
-                  <Typography >{groupName}</Typography>
 
-                  <Box sx={{ marginLeft: 2, marginRight: 2, opacity: mouseEnter ? 1 : 0 }} onClick={() => { setEditing(true) }}>
+        <div
+          ref={dragRef}
+          id="grouup-title"
+          style={{
+            width: '100%', cursor: 'move', paddingLeft: '0.5em', paddingBottom: 0
+          }}
+          onMouseEnter={() => { setMouseEnter(true) }}
+          onMouseLeave={() => { setMouseEnter(false) }}
+          onClick={() => { setExpanded(!expanded) }}>
+          {!editing &&
+            <>
+              <Box display='block' sx={{ width: '100%' }}>
+
+                <Box display='inline-block'>
+                  <Typography style={{ lineHeight: 2 }}>{groupName}</Typography>
+                </Box>
+
+                <Box display='flex' style={{ float: 'right', cursor: 'default', opacity: mouseEnter ? 1 : 0 }}>
+                  <Box style={{ lineHeight: 2 }} sx={{ marginLeft: 2, marginRight: 2 }} onClick={() => { setEditing(true) }}>
                     <EditIcon color="disabled" />
                   </Box>
-                  <Box sx={{ float: 'right', opacity: mouseEnter ? 1 : 0 }} >
+                  <Box style={{ lineHeight: 2 }}  >
                     <DeleteIcon color="disabled" onClick={() => { deleteGroup() }} />
                   </Box>
                 </Box>
-              </>}
-            {editing && <Box sx={{ width: '100%' }}>
-              <ClickAwayListener onClickAway={() => { updateGroupName() }}>
-                <TextField
-                  value={groupName}
-                  onChange={(e) => {
-                    setGroupName(e.target.value.trim());
-                  }} />
-              </ClickAwayListener>
-            </Box>
-            }
-          </AccordionSummary>
-          <AccordionDetails >
-            <Box>
-              {expanded &&
-                <Grid sx={{ flexGrow: 1 }} container spacing={{ xs: 2, md: 3 }} columns={{ xs: 4, sm: 8, md: 12 }}>
-                  {cardList}
-                </Grid>
-              }
-              <Box ref={serverDrop}
-                sx={{ width: '100%', height: '10px' }}>
-                {isServerOver && <LinearProgress variant="determinate" color="secondary" value={0} />}
               </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+            </>}
+          {editing && <Box sx={{ width: '100%' }}>
+            <ClickAwayListener onClickAway={() => { updateGroupName() }}>
+              <TextField
+                value={groupName}
+                onChange={(e) => {
+                  setGroupName(e.target.value.trim());
+                }} />
+            </ClickAwayListener>
+          </Box>
+          }
+        </div>
+
+        <Box>
+          {expanded &&
+            <Grid sx={{ flexGrow: 1 }} container spacing={{ xs: 2, md: 3 }} columns={{ xs: 4, sm: 8, md: 12 }}>
+              {cardList}
+            </Grid>
+          }
+          <Box ref={serverDrop}
+            sx={{ width: '100%', height: '10px' }}>
+            {isServerOver && <LinearProgress variant="determinate" color="secondary" value={0} />}
+          </Box>
+        </Box>
       </Box>
     </Box >
   );

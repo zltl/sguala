@@ -21,7 +21,6 @@ import AddIcon from '@mui/icons-material/Add';
 import { AddGroupPage } from './AddGroupPage';
 import Computer from '@mui/icons-material/Computer';
 
-
 interface Props {
   goBack: () => void
 
