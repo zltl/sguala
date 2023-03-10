@@ -23,6 +23,7 @@ export class Server {
 export class ServerGroup {
   uuid = uuidv4();
   name: string
+  tabOpening?: boolean = false
   servers: Server[] = []
 }
 

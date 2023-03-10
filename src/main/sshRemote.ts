@@ -394,5 +394,10 @@ export class SshRemote {
   static deleteClient(mkeyStr: string) {
     this.clientMap.delete(mkeyStr);
   }
+  static deleteServerClient(opts: SshConnectOptions) {
+    const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
+    const mkeyStr = mkey.toString();
+    this.deleteClient(mkeyStr);
+  }
 }
 

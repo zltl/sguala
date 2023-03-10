@@ -28,23 +28,103 @@ export function initIpc() {
     return g;
   });
 
-  ipcMain.handle('conf-add-server', async (event, gname: string, s: Server) => {
-    const c = conf.get();
-    const g = c.groups.find(g => g.name === gname);
+  ipcMain.handle('conf-open-group-tab', async (event, uuid: string, opening: boolean) => {
+    const g = conf.getGroup(uuid);
     if (!g) {
-      return;
+      console.log('error not found group');
+      return { type: 'error', message: 'Group not exists, open tab failed' };
     }
-    if (!s.uuid || s.uuid === '') {
-      s.uuid = uuidv4();
-    }
-    g.servers.push(s);
-    await conf.store(c);
-    return s;
+    g.tabOpening = opening;
+    await conf.store(conf.get());
+    return { type: 'ok' };
   });
 
+  ipcMain.handle('conf-add-server', async (event, s: any) => {
+    console.log('conf-add-server', JSON.stringify(s));
+    const c = conf.get();
+    const g = conf.getGroup(s.groupUuid);
+    if (!g) {
+      console.log('error not found group');
+      return { type: 'error', message: 'Group not exists, add server failed' };
+    }
+    if (!s.uuid || s.uuid === '') {
+      // new server
+      s.uuid = uuidv4();
+      const server = s as Server;
+      g.servers.push(server);
+      console.log('server add ok: ', JSON.stringify(server));
+    } else {
+      // update server
+      const server = conf.getServer(s.uuid);
+      if (!server) {
+        console.log('error not found server');
+        return { type: 'error', message: 'Server not exists, update failed' };
+      }
+    }
+    await conf.store(c);
+    await conf.load();
+    return { type: 'ok' };
+  });
 
-  ipcMain.handle('remote-server-stat', async (event, server: any): Promise<ServerStat> => {
-    console.log(`remote-server-stat: `, JSON.stringify(server));
+  ipcMain.handle('conf-remove-group', async (event, uuid: string) => {
+    const c = conf.get();
+    const index = c.groups.findIndex(g => g.uuid === uuid);
+    if (index < 0) {
+      return { type: 'error', message: 'Group not exists, remove failed' };
+    }
+
+    const g = c.groups[index];
+    c.groups.splice(index, 1);
+    g.servers.forEach(s => {
+      SshRemote.deleteServerClient({ ...s, windowId: event.sender.id })
+    });
+
+    await conf.store(c);
+    await conf.load();
+    return { type: 'ok' };
+  });
+
+  ipcMain.handle('conf-update-group', async (event, uuid: string, name: string) => {
+    console.log('conf-update-group', uuid, name);
+    const g = conf.getGroup(uuid);
+    if (!g) {
+      console.log('error not found group');
+      return { type: 'error', message: 'Group not exists, update failed' };
+    }
+    g.name = name;
+    await conf.store(conf.get());
+    await conf.load();
+    return { type: 'ok' };
+  });
+
+  ipcMain.handle('conf-remove-server', async (event, guuid: string, suuid: string) => {
+    console.log('conf-remove-server', guuid, suuid);
+    const g = conf.getGroup(guuid);
+    if (!g) {
+      console.log('error not found group');
+      return { type: 'error', message: 'Group not exists, remove server failed' };
+    }
+    const index = g.servers.findIndex(s => s.uuid === suuid);
+    if (index < 0) {
+      console.log('error not found server');
+      return { type: 'error', message: 'Server not exists, remove failed' };
+    }
+    const server = g.servers[index];
+    g.servers.splice(index, 1);
+
+    SshRemote.deleteServerClient({ ...server, windowId: event.sender.id });
+    await conf.store(conf.get());
+    await conf.load();
+    return { type: 'ok' };
+  });
+
+  ipcMain.handle('remote-server-stat', async (event, serverUuid: any): Promise<ServerStat> => {
+    console.log("remote-server-stat: ", serverUuid);
+    const server = conf.getServer(serverUuid);
+    if (!server) {
+      return emptyServerStat();
+    }
+
     const remote = SshRemote.client({
       ...server,
       windowId: event.sender.id,
@@ -89,5 +169,54 @@ export function initIpc() {
     await conf.load();
   });
 
+  ipcMain.handle('conf-move-server', async (event, groupUuid: string,
+    serverUuid: string, targetGroupUuid: string, targetServerUuid: string) => {
+
+    console.log('conf-move-server', groupUuid, serverUuid, targetGroupUuid, targetServerUuid);
+
+    const c = conf.get();
+
+    // find server groups and is index
+    const sgroup = conf.getGroup(groupUuid);
+    if (!sgroup) {
+      console.log('source group not found');
+      return;
+    }
+    // find server index on sgroup
+    const sindex = sgroup.servers.findIndex(s => s.uuid === serverUuid);
+    if (sindex < 0) {
+      console.log('source server not found');
+      return;
+    }
+    const s = sgroup.servers[sindex];
+
+    // delete server from sgroup
+    sgroup.servers.splice(sindex, 1);
+
+    // find target group
+    const tgroup = conf.getGroup(targetGroupUuid);
+    if (!tgroup) {
+      console.log('target group not found');
+      await conf.load();
+      return;
+    }
+
+    // find target server index
+    let tindex = tgroup.servers.length;
+    if (targetServerUuid != 'end') {
+      tindex = tgroup.servers.findIndex(s => s.uuid === targetServerUuid);
+      if (tindex < 0) {
+        console.log('target server not found');
+        await conf.load();
+        return;
+      }
+    }
+
+    // insert server to tgroup
+    tgroup.servers.splice(tindex, 0, s);
+
+    await conf.store(c);
+    await conf.load();
+  });
 
 }

@@ -7,7 +7,7 @@ import Button from '@mui/material/Button';
 import { Observer } from './Observer';
 
 interface Props {
-  prevPageName: string;
+  goBack: () => void;
 }
 
 export function AddGroupPage(props: Props) {
@@ -15,7 +15,7 @@ export function AddGroupPage(props: Props) {
   const [groupName, setGroupName] = React.useState<string>(null);
 
   const goBack = () => {
-    Observer.notify('changePage', props.prevPageName);
+    props.goBack && props.goBack();
   };
 
   const confirm = async () => {
@@ -27,8 +27,7 @@ export function AddGroupPage(props: Props) {
   return (
     <Box component="form">
       <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
-        <GroupIcon sx={{ color: 'action.active', mr: 1, my: 0.5 }} />
-        <TextField id="input-with-sx" label={t("Group Name")} variant="standard" sx={{ width: '100%' }}
+        <TextField id="input-with-sx" label={t("Group Name")} sx={{ width: '100%' }}
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)} />
       </Box>

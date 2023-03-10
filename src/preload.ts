@@ -35,17 +35,43 @@ contextBridge.exposeInMainWorld('main', {
     },
 
     addGroup: async (gname: string) => {
-      return ipcRenderer.invoke('conf-add-group', gname);
+      return await ipcRenderer.invoke('conf-add-group', gname);
+    },
+
+    updateGroup: async (uuid: string, gname: string) => {
+      console.log('update group', uuid, gname);
+      return await ipcRenderer.invoke('conf-update-group', uuid, gname);
+    },
+
+    addServer: async (s: any): Promise<any> => {
+      console.log("addServer: ", JSON.stringify(s));
+      return await ipcRenderer.invoke('conf-add-server', s);
+    },
+
+    removeGroup: async (uuid: string) => {
+      return await ipcRenderer.invoke('conf-remove-group', uuid);
+    },
+
+    openGroupTab: async (uuid: string, opening: boolean) => {
+      return await ipcRenderer.invoke('conf-open-group-tab', uuid, opening);
+    },
+
+    removeServer: async (groupUuid: string, serverUuid: string) => {
+      return await ipcRenderer.invoke('conf-remove-server', groupUuid, serverUuid);
     },
 
     moveGroup: async (item: string, target: string) => {
-      return ipcRenderer.invoke('conf-move-group', item, target);
+      return await ipcRenderer.invoke('conf-move-group', item, target);
+    },
+
+    moveServer: async (groupUuid: string, serverUuid: string, targetGroupUuid: string, targetServerUuid: string) => {
+      return await ipcRenderer.invoke('conf-move-server', groupUuid, serverUuid, targetGroupUuid, targetServerUuid);
     }
   },
 
   remote: {
-    getServerStat: async (server: any): Promise<any> => {
-      return await ipcRenderer.invoke('remote-server-stat', server);
+    getServerStat: async (serverUuid: any): Promise<any> => {
+      return await ipcRenderer.invoke('remote-server-stat', serverUuid);
     }
   }
 

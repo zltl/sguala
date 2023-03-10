@@ -9,6 +9,7 @@ import { AddGroupPage } from './AddGroupPage';
 import { Observer } from './Observer';
 import { DndProvider, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
+import { EditServerPage } from './EditServerPage';
 
 import './ShellPage.css';
 import { LabelFab } from './LabelFab';
@@ -22,9 +23,16 @@ export function DashboardPage() {
   const addGroupPage = {
     name: 'Add Group',
     page: <AddGroupPage
-      prevPageName='sguala' />,
+      goBack={() => { Observer.notify('changePage', 'sguala') }} />,
     icon: <GroupIcon />,
   };
+
+  const addServerPage = {
+    name: 'Add Server',
+    page: <EditServerPage
+      goBack={() => { Observer.notify('changePage', 'sguala') }} />,
+    icon: <ComputerIcon />,
+  }
 
   const reloadConf = async () => {
     const c = await main.conf.get();
@@ -40,7 +48,7 @@ export function DashboardPage() {
       return null;
     }
     return (
-      <ServerGroup group={group} key={group.uuid} reloadConf={() => { reloadConf() }} />
+      <ServerGroup group={group} key={JSON.stringify(group)} reloadConf={() => { reloadConf() }} />
     );
   });
 
@@ -67,7 +75,7 @@ export function DashboardPage() {
               label='添加服务器'
               icon={<ComputerIcon />}
               color='secondary'
-              onClick={() => { console.log("add server") }}
+              onClick={() => { Observer.notify('shellNavigateTo', addServerPage) }}
             />
 
             <LabelFab
