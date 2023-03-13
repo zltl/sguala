@@ -161,7 +161,7 @@ export function ServerCard(props: ServerCardProps) {
             {mouseEnter && <Box sx={{ cursor: 'default' }}>
               <Box>
                 <Box display='flex' >
-                  <Box sx={{ mr: 2 }}> <DragIndicatorIcon color="disabled" /> </Box>
+                  <Box sx={{ mr: 2, cursor: 'move' }}> <DragIndicatorIcon color="disabled" /> </Box>
                   <Box sx={{ mr: 2 }} onClick={() => gotoEditServer()}><EditIcon color="primary" /> </Box>
                   <Box sx={{ mr: 2 }}><DriveFileMoveIcon color="primary" /> </Box>
                   <Box sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon color="primary" /> </Box>
