@@ -151,7 +151,7 @@ export class SshClient {
         opts.password = undefined;
       }
 
-      this.c.connect(this.opts);
+      this.c.connect(opts);
     });
   }
 

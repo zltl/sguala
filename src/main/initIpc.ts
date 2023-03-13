@@ -10,7 +10,6 @@ export function initIpc() {
 
   ipcMain.handle('conf-get-server', (event, uuid: string) => {
     const r = conf.getServer(uuid);
-    console.log("RRRRRRRRRRRR: ", JSON.stringify(r));
     return r;
   });
 
@@ -63,12 +62,15 @@ export function initIpc() {
       console.log('server add ok: ', JSON.stringify(server));
     } else {
       // update server: delete first, then add
-      const index = g.servers.findIndex(s => s.uuid === s.uuid);
-      if (index < 0) {
-        console.log('error not found server');
-        return { type: 'error', message: 'Server not exists, update failed' };
+      // note that the server uuid is not changed, so we can find it by uuid
+      // server may be moved to another group, so we need to delete it from the old group
+      for (const g of c.groups) {
+        const index = g.servers.findIndex(gs => gs.uuid === s.uuid);
+        if (index >= 0) {
+          g.servers.splice(index, 1);
+          break;
+        }
       }
-      g.servers.splice(index, 1);
       const server = s as Server;
       g.servers.push(server);
       console.log('server update ok: ', JSON.stringify(server));

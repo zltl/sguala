@@ -190,7 +190,7 @@ export function EditServerPage(props: Props) {
 
         <FormControlLabel
           sx={{ width: '100%' }}
-          control={<Checkbox value={useHop}
+          control={<Checkbox checked={useHop}
             onChange={(e) => setUseHop(e.target.checked)} />} label={t("Use hopping server")} />
         {useHop && <FormControl fullWidth>
           <InputLabel id="demo-simple-select-label">{t('Select Hopping Server')}</InputLabel>
@@ -211,7 +211,7 @@ export function EditServerPage(props: Props) {
           value={username}
           onChange={(e) => setUsername(e.target.value.trim())} />
 
-        <FormControlLabel control={<Checkbox value={usePassword}
+        <FormControlLabel control={<Checkbox checked={usePassword}
           onChange={(e) => setUsePassword(e.target.checked)} />} label={t("Use password instead of ssh-key")} />
 
         {usePassword && <TextField id="input-with-sx" label={t("Password")}
