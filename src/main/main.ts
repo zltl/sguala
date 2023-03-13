@@ -13,6 +13,10 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const SHELL_WINDOW_WEBPACK_ENTRY: string;
 declare const SHELL_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
+declare const SFTP_WINDOW_WEBPACK_ENTRY: string;
+declare const SFTP_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+
+
 const inDevMode = process.argv.includes("--dev");
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -84,7 +88,7 @@ const createShellWIndow = async (uuid: string) => {
   SshRemote.shell({ ...server, windowId: shellCnt }, shellWindow);
 
   shellWindow.on('closed', () => {
-    SshRemote.deleteShellServerClient({...server, windowId: shellCnt});
+    SshRemote.deleteShellServerClient({ ...server, windowId: shellCnt });
   });
 
   shellCnt++;
@@ -95,6 +99,42 @@ ipcMain.handle('shell-window', async (event, uuid: string) => {
   await createShellWIndow(uuid);
 });
 
+const createSftpWindow = async (uuid: string) => {
+  await initEnv();
+
+  const sftpWindow = new BrowserWindow({
+    height: 600,
+    width: 800,
+    autoHideMenuBar: true,
+    webPreferences: {
+      additionalArguments: [`uuid=${uuid}`, `shellCnt=${shellCnt}`],
+      preload: SFTP_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      nodeIntegrationInWorker: true,
+    },
+  });
+
+  sftpWindow.loadURL(SFTP_WINDOW_WEBPACK_ENTRY + `?uuid=${uuid}&shellCnt=${shellCnt}`);
+  inDevMode && sftpWindow.webContents.openDevTools();
+
+  console.log('start sftp');
+
+  const server = conf.getServer(uuid);
+  if (!server) {
+    console.log('server not found');
+    return;
+  }
+  SshRemote.sftp({ ...server, windowId: shellCnt }, sftpWindow);
+
+  sftpWindow.on('closed', () => {
+    SshRemote.deleteSftpServerClient({ ...server, windowId: shellCnt });
+  });
+
+  shellCnt++;
+};
+ipcMain.handle('sftp-window', async (event, uuid: string) => {
+  console.log('sftp-window', uuid);
+  await createSftpWindow(uuid);
+});
 
 
 // This method will be called when Electron has finished

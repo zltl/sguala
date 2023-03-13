@@ -33,6 +33,14 @@ const config: ForgeConfig = {
             preload: {
               js: './src/preload.ts',
             },
+          },
+          {
+            html: './src/sftp.html',
+            js: './src/sftpRenderer.ts',
+            name: 'sftp_window',
+            preload: {
+              js: './src/preload.ts',
+            },
           }
         ],
       },

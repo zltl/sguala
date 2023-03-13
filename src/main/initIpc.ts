@@ -149,6 +149,19 @@ export function initIpc() {
     return stat;
   });
 
+  ipcMain.handle('remote-sftp', async (event, serverUuid: string, cnt: number) => {
+    console.log("remote sftp", serverUuid, cnt);
+    const sftp = SshRemote.getSftpClient(cnt, serverUuid);
+    if (!sftp) {
+      console.log('error not found sftp');
+      return { type: 'error', message: 'Sftp not exists, open failed' };
+    }
+    await sftp.connect();
+    await sftp.sftp();
+
+    return { type: 'ok' };
+  });
+
   ipcMain.handle('remote-shell', async (event, serverUuid: any, cnt: number) => {
     console.log("remote-shell: ", serverUuid, cnt);
     const shell = SshRemote.getShellClient(cnt, serverUuid);

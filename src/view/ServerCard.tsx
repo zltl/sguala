@@ -11,6 +11,7 @@ import TerminalIcon from '@mui/icons-material/Terminal';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import IconButton from '@mui/material/IconButton';
 
 import { useTranslation } from 'react-i18next';
 import { Observer } from './Observer';
@@ -70,6 +71,10 @@ export function ServerCard(props: ServerCardProps) {
 
   const startShell = async () => {
     await main.remote.shellWindow(server.uuid);
+  };
+
+  const startSftp = async () => {
+    await main.remote.sftpWindow(server.uuid);
   }
 
   React.useEffect(() => {
@@ -161,12 +166,12 @@ export function ServerCard(props: ServerCardProps) {
             {mouseEnter && <Box sx={{ cursor: 'default' }}>
               <Box>
                 <Box display='flex' >
-                  <Box sx={{ mr: 2, cursor: 'move' }}> <DragIndicatorIcon color="disabled" /> </Box>
-                  <Box sx={{ mr: 2 }} onClick={() => gotoEditServer()}><EditIcon color="primary" /> </Box>
-                  <Box sx={{ mr: 2 }}><DriveFileMoveIcon color="primary" /> </Box>
-                  <Box sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon color="primary" /> </Box>
+                  <IconButton sx={{ cursor: 'move' }}> <DragIndicatorIcon color="disabled" /> </IconButton>
+                  <IconButton onClick={() => gotoEditServer()}><EditIcon /> </IconButton>
+                  <IconButton onClick={() => startSftp()} ><DriveFileMoveIcon /> </IconButton>
+                  <IconButton sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon /> </IconButton>
 
-                  <Box onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon color="primary" /> </Box>
+                  <IconButton onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon /> </IconButton>
                 </Box>
               </Box>
             </Box>}

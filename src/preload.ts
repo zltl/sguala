@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('main', {
       return await ipcRenderer.invoke('remote-server-stat', serverUuid);
     },
 
+    // connect/shell
     shell: async (serverUuid: string, cnt: number): Promise<any> => {
       return await ipcRenderer.invoke('remote-shell', serverUuid, cnt);
     },
@@ -85,6 +86,15 @@ contextBridge.exposeInMainWorld('main', {
     shellWindow: async (serverUuid: string): Promise<any> => {
       return await ipcRenderer.invoke('shell-window', serverUuid);
     },
+
+    sftpWindow: async (serverUuid: string): Promise<any> => {
+      return await ipcRenderer.invoke('sftp-window', serverUuid);
+    },
+
+    // connect/sftp
+    sftp: async (serverUuid: string, cnt: number): Promise<any> => {
+      return await ipcRenderer.invoke('remote-sftp', serverUuid, cnt);
+    }
   }
 
 });

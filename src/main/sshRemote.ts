@@ -1,7 +1,10 @@
 // helper functions to get info from host
 
-import { ipcMain } from "electron";
+import { ipcMain, dialog } from "electron";
 import ssh2, { Client } from "ssh2";
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from "fs";
 
 export class SshClientMapKey {
   windowId: number;
@@ -82,10 +85,12 @@ export function emptyServerStat(): ServerStat {
   };
 }
 
+type SshClientType = 'ssh' | 'shell' | 'sftp';
+
 export class SshClient {
   c: Client;
   opts: SshConnectOptions;
-  isShell: boolean
+  ctype: SshClientType;
   state = SshClientState.Disconnected;
   err: any;
   win: any;
@@ -101,10 +106,10 @@ export class SshClient {
   prev: any;
 
 
-  constructor(c: Client, opts?: SshConnectOptions, isShell?: boolean) {
+  constructor(c: Client, opts?: SshConnectOptions, ctype?: SshClientType) {
     this.c = c;
     this.opts = opts;
-    this.isShell = isShell;
+    this.ctype = ctype;
   }
 
   mkeyStr(): string {
@@ -155,9 +160,7 @@ export class SshClient {
     });
   }
 
-  shell = async (): Promise<void> => {
-    const chanKey = `SHELL_CHANNEL_${this.opts.uuid}/${this.opts.windowId}`;
-    const win = this.win;
+  checkConnected = async (): Promise<void> => {
     if (this.state !== SshClientState.Connected) {
       console.log("ssh client not connected");
       // connect first
@@ -171,6 +174,400 @@ export class SshClient {
         throw new Error("ssh client not connected");
       }
     }
+    return;
+  }
+
+  sftpDoRealPath = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    sftp.realpath(data.path, (err: any, abspath: string) => {
+      if (err) {
+        console.log('realpath error:', err);
+        win.webContents.send(chanKey, {
+          op: 'realPath',
+          data: data.path,
+          err: err.message,
+        });
+      } else {
+        win.webContents.send(chanKey, {
+          op: 'realPath',
+          path: data.path,
+          realPath: abspath,
+        });
+      }
+    });
+  };
+
+  sftpDoLs = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    sftp.readdir(data.path, (err: any, list: any[]) => {
+      if (err) {
+        console.log('readdir error:', err);
+        win.webContents.send(chanKey, {
+          op: 'ls',
+          path: data.path,
+          err: err.message,
+        });
+      } else {
+        const ret: any[] = [];
+        const prefDir = data.path + "/...";
+        for (const item of list) {
+          const ic = {
+            name: item.filename,
+            fullPath: data.path + "/" + item.filename,
+          };
+
+          const isDir = item.longname.startsWith('d')
+          ret.push({
+            name: item.filename,
+            path: prefDir,
+            isDir: isDir,
+            size: isDir ? 0 : item.attrs.size,
+            mtime: new Date(item.attrs.mtime * 1000).toLocaleString(),
+          });
+        }
+        win.webContents.send(chanKey, {
+          op: 'ls',
+          path: data.path,
+          list: ret,
+        });
+      }
+    });
+  };
+
+  sftpPut = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    const targetDia = await dialog.showOpenDialog(this.win, {
+      title: 'sguala - download to',
+      properties: ['openFile', 'openDirectory'],
+    });
+    const localPath = targetDia.filePaths[0];
+    const tranferPutOne = async (localF: any, remotePath: string, started = false, curUuid?: string) => {
+      const remotePathConc = remotePath + '/' + localF.name;
+      if (!curUuid) {
+        curUuid = uuidv4();
+      }
+      if (!started) {
+        await win.webContents.send(chanKey, {
+          'op': 'transferStart',
+          'transferType': 'put',
+          'remoteFullPath': remotePathConc,
+          'localFullPath': localF.fullPath,
+          'uuid': curUuid,
+        });
+      }
+
+      console.log(`putting ${localF.fullPath} to ${remotePathConc}`);
+      if (localF.isDir) {
+        await new Promise((mkdirResolve, mkdirReject) => {
+          sftp.mkdir(remotePathConc, async (err: any) => {
+            if (err) {
+              console.log('mkdir error:', err);
+              await win.webContents.send(curUuid, {
+                'op': 'transferError',
+                'transferType': 'put',
+                'remoteFullPath': remotePathConc,
+                'localFullPath': localF.fullPath,
+                'error': err.message,
+              });
+              return;
+            }
+            mkdirResolve(0);
+          });
+        });
+
+        const flist = await fs.readdir(localF.fullPath);
+        const xuidm = new Map();
+        for (const f of flist) {
+          const localFPath = path.join(localF.fullPath, f);
+          const stat = await fs.stat(localFPath);
+          const uid = uuidv4();
+          xuidm.set(f, uid);
+          await win.webContents.send(chanKey, {
+            'op': 'transferStart',
+            'transferType': 'put',
+            'remoteFullPath': remotePathConc + '/' + f,
+            'localFullPath': localFPath,
+            'uuid': uid,
+          });
+        }
+        for (const f of flist) {
+          const localFPath = path.join(localF.fullPath, f);
+          const stat = await fs.stat(localFPath);
+          const xuuid = xuidm.get(f);
+          await tranferPutOne({
+            fullPath: localFPath,
+            isDir: stat.isDirectory(),
+            name: f,
+            size: stat.size,
+            mtime: stat.mtime.toLocaleString(),
+          }, remotePathConc, true, xuuid);
+        }
+        win.webContents.send(curUuid, {
+          'op': 'transferProgress',
+          'transfered': 0,
+          'fsize': 0,
+          'speed': '-',
+          'isEnd': true,
+          'remoteFullPath': remotePathConc,
+          'localFullPath': localF.fullPath,
+        });
+      } else {
+        return new Promise((gResolve, gReject) => {
+          const startTs = new Date();
+          let prevStepTs = new Date();
+          let prevTotal = 0;
+
+          let gtotal = 0;
+          let gfsize = localF.size;
+          console.log('putting', localF.fullPath, 'to', remotePathConc);
+          sftp.fastPut(localF.fullPath, remotePathConc, {
+            step: async (total: number, nb: number, fsize: number) => {
+              const curTs = new Date();
+              const ms = curTs.getTime() - prevStepTs.getTime();
+              if (ms < 100 && total < fsize) {
+                return;
+              }
+              const speed = (total - prevTotal) * 1000 / ms;
+              await win.webContents.send(curUuid, {
+                'op': 'transferProgress',
+                'transfered': total,
+                'fsize': fsize,
+                'speed': speed,
+                'isEnd': false,
+                'remoteFullPath': remotePathConc,
+                'localFullPath': localF.fullPath,
+              });
+              gtotal = total;
+              gfsize = fsize;
+              prevStepTs = curTs;
+              prevTotal = total;
+            }
+          }, async (e: any) => {
+            if (e) {
+              console.log('put error:', e);
+              await win.webContents.send(curUuid, {
+                'op': 'transferError',
+                'transferType': 'put',
+                'remoteFullPath': remotePathConc,
+                'localFullPath': localF.fullPath,
+                'error': e.message,
+              });
+              gResolve(0);
+              return;
+            } else {
+              const curTs = new Date();
+              const ms = curTs.getTime() - startTs.getTime();
+              const speed = gfsize * 1000 / ms;
+              await win.webContents.send(curUuid, {
+                'op': 'transferProgress',
+                'transfered': gfsize,
+                'fsize': gfsize,
+                'speed': speed,
+                'isEnd': true,
+                'remoteFullPath': remotePathConc,
+                'localFullPath': localF.fullPath,
+              });
+              console.log('transfer success', remotePathConc);
+              gResolve(0);
+            }
+          });
+        });
+      }
+    }
+
+    const stat = await fs.stat(localPath);
+    const localF = {
+      fullPath: localPath,
+      isDir: stat.isDirectory(),
+      name: path.basename(localPath),
+      size: stat.size,
+      mtime: stat.mtime.toLocaleString(),
+    };
+
+    await tranferPutOne(localF, data.remotePath);
+  };
+
+  sftpGet = async (chanKey: string, sftp: any, data: any) => {
+    // get file/dir from remote
+    const targetDia = await dialog.showOpenDialog(this.win, {
+      title: 'sguala - download to',
+      properties: ['openDirectory'],
+    });
+    const localPath = targetDia.filePaths[0];
+
+    const tranferOne = async (remoteF: any, local: string, started = true, curUuid?: string) => {
+      const win = this.win;
+      const localPathConc = path.join(local, remoteF.name);
+      if (!curUuid) {
+        curUuid = uuidv4();
+      }
+      if (!started) {
+        await win.webContents.send(chanKey, {
+          'op': 'transferStart',
+          'transferType': 'get',
+          'remoteFullPath': remoteF.fullPath,
+          'localFullPath': localPathConc,
+          'uuid': curUuid,
+        });
+      }
+      console.log(`transfering ${JSON.stringify(remoteF)} to ${localPathConc} ${curUuid}`);
+
+      if (remoteF.isDir) {
+        await fs.mkdir(localPathConc, {
+          recursive: true
+        });
+        return new Promise((getResolve, getReject) => {
+          sftp.readdir(remoteF.fullPath, async (err: any, list: any[]) => {
+            if (err) {
+              console.log("EGETSFTP", err);
+              await win.webContents.send(curUuid, {
+                'op': 'transferError',
+                'transferType': 'get',
+                'remoteFullPath': remoteF.fullPath,
+                'localFullPath': localPathConc,
+                'error': err.message,
+              });
+              getResolve(1);
+              return;
+            }
+            const uidxm = new Map();
+            for (const fent of list) {
+              const xuuid = uuidv4();
+              uidxm.set(fent.filename, xuuid);
+              await win.webContents.send(chanKey, {
+                'op': 'transferStart',
+                'transferType': 'get',
+                'fullPath': remoteF.fullPath + '/' + fent.filename,
+                'localFullPath': path.join(localPathConc, fent.filename),
+                'uuid': xuuid,
+              });
+            }
+            for (const fent of list) {
+              const isDir = fent.longname.startsWith('d');
+              const xuuid = uidxm.get(fent.filename);
+              await tranferOne({
+                name: fent.filename,
+                fullPath: remoteF.fullPath + '/' + fent.filename,
+                isDir: isDir,
+                size: isDir ? 0 : fent.attrs.size,
+                mtime: new Date(fent.attrs.mtime * 1000).toLocaleString(),
+              }, localPathConc, true, xuuid);
+            }
+
+            await win.webContents.send(curUuid, {
+              'op': 'transferProgress',
+              'transfered': 0,
+              'fsize': 1,
+              'speed': '-',
+              'isEnd': true,
+              'remoteFullPath': remoteF.fullPath,
+              'localFullPath': localPathConc,
+            });
+
+            getResolve(0);
+          });
+        });
+      } else {
+        const startTs = new Date();
+        let prevStepTs = new Date();
+        let prevTotal = 0;
+
+        let gtotal = 0;
+        let gfsize = remoteF.size;
+        console.log("fastGeting", JSON.stringify(remoteF), "to", localPathConc);
+
+        return new Promise((gResolve, gReject) => {
+          sftp.fastGet(remoteF.fullPath, localPathConc, {
+            step: async (total: number, nb: number, fsize: number) => {
+              const curTs = new Date();
+              const ms = curTs.getTime() - prevStepTs.getTime();
+              if (ms < 100 && total != fsize) {
+                return;
+              }
+              const speed = (total - prevTotal) * 1000 / ms;
+              await win.webContents.send(curUuid, {
+                'op': 'transferProgress',
+                'transfered': total,
+                'fsize': fsize,
+                'isEnd': false,
+                'remoteFullPath': remoteF.fullPath,
+                'localFullPath': localPathConc,
+              });
+              gtotal = total;
+              gfsize = fsize;
+              prevStepTs = curTs;
+              prevTotal = total;
+            },
+          }, async (err: any) => {
+            if (err) {
+              console.log('transfer error', err);
+              win.webContents.send(curUuid, {
+                'op': 'transferError',
+                'transferType': 'get',
+                'remoteFullPath': remoteF.fullPath,
+                'localFullPath': localPathConc,
+                'error': err.message,
+              });
+              gResolve(1);
+              return;
+            }
+            const curTs = new Date();
+            const ms = curTs.getTime() - startTs.getTime();
+            let speed = 0;
+            if (ms > 0) {
+              speed = gfsize * 1000 / ms;
+            }
+            win.webContents.send(curUuid, {
+              'op': 'transferProgress',
+              'transfered': gfsize,
+              'fsize': gfsize,
+              'speed': speed,
+              'isEnd': true,
+              'remoteFullPath': remoteF.fullPath,
+              'localFullPath': localPathConc,
+            });
+            console.log('transfer success', remoteF.fullPath)
+          });
+          gResolve(0);
+        });
+      }
+    };
+    await tranferOne(data.remoteF, localPath);
+  }
+
+  sftp = async (): Promise<void> => {
+    const chanKey = `SFTP_CHANNEL_${this.opts.uuid}/${this.opts.windowId}`;
+    const win = this.win;
+    await this.checkConnected();
+
+    return new Promise((resolve, reject) => {
+      this.c.sftp((err, sftp) => {
+        if (err) {
+          console.log('sftp error:', err);
+          reject(err);
+          return;
+        }
+        ipcMain.on(chanKey, async (ev, data) => {
+          console.log('sftp got data:', data, chanKey);
+          if (data.op === 'realPath') {
+            await this.sftpDoRealPath(chanKey, sftp, data);
+          } else if (data.op === 'ls') {
+            await this.sftpDoLs(chanKey, sftp, data);
+          } else if (data.op === 'get') {
+            await this.sftpGet(chanKey, sftp, data);
+          } else if (data.op === 'put') {
+            await this.sftpPut(chanKey, sftp, data);
+          }
+        });
+        resolve();
+      });
+    });
+  };
+
+  shell = async (): Promise<void> => {
+    const chanKey = `SHELL_CHANNEL_${this.opts.uuid}/${this.opts.windowId}`;
+    const win = this.win;
+    await this.checkConnected();
     // start shell
     return new Promise((resolve, reject) => {
       this.c.shell({ env: this.env }, (err, stream) => {
@@ -188,7 +585,7 @@ export class SshClient {
             stream.setWindow(data.rows, data.cols, '', '');
           }
         });
-        
+
         stream.on('close', () => {
           ipcMain.removeAllListeners(chanKey);
           console.log('shell closed');
@@ -196,7 +593,7 @@ export class SshClient {
             win.send(chanKey, {
               'op': 'data',
               'data': 'session closed',
-            });  
+            });
           } catch (e) {
             console.log('session close send error', e);
           }
@@ -262,10 +659,13 @@ export class SshClient {
   }
 
   close = async (): Promise<void> => {
-    if (this.isShell) {
+    if (this.ctype == 'shell') {
       SshRemote.deleteShellClient(this.mkeyStr());
-    } else {
+    } else if (this.ctype === 'ssh') {
       SshRemote.deleteClient(this.mkeyStr());
+    } else {
+      // sftp
+      SshRemote.deleteSftpClient(this.mkeyStr());
     }
     return new Promise((resolve, reject) => {
       this.c.on("close", () => {
@@ -461,6 +861,7 @@ export class SshClient {
 export class SshRemote {
   private static clientMap = new Map<string, SshClient>();
   private static shellMap = new Map<string, SshClient>();
+  private static sftpMap = new Map<string, SshClient>();
 
   static client(opts: SshConnectOptions): SshClient {
     const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
@@ -471,7 +872,7 @@ export class SshRemote {
       return this.clientMap.get(mkeyStr);
     }
     console.log(`SshRemote.client: ${mkeyStr} not found`);
-    const c = new SshClient(null, opts, false);
+    const c = new SshClient(null, opts, 'ssh');
     this.clientMap.set(mkeyStr, c);
     return c;
   }
@@ -486,10 +887,25 @@ export class SshRemote {
     }
 
     console.log(`SshRemote.client: ${mkeyStr} not found, new one`);
-    const c = new SshClient(null, opts, true);
+    const c = new SshClient(null, opts, 'shell');
     c.win = win;
     this.shellMap.set(mkeyStr, c);
 
+    return c;
+  }
+
+  static sftp(opts: SshConnectOptions, win: any): SshClient {
+    const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
+    const mkeyStr = mkey.toString();
+    console.log(`SshRemote.client.key: ${mkeyStr}`);
+    if (this.sftpMap.has(mkeyStr)) {
+      console.log(`SshRemote.client: ${mkeyStr} found`);
+      return this.sftpMap.get(mkeyStr);
+    }
+    console.log(`SshRemote.client: ${mkeyStr} not found`);
+    const c = new SshClient(null, opts, 'sftp');
+    c.win = win;
+    this.sftpMap.set(mkeyStr, c);
     return c;
   }
 
@@ -498,6 +914,15 @@ export class SshRemote {
     const mkeyStr = mkey.toString();
     if (this.shellMap.has(mkeyStr)) {
       return this.shellMap.get(mkeyStr);
+    }
+    return null;
+  }
+
+  static getSftpClient(winId: number, serverid: string): SshClient {
+    const mkey = new SshClientMapKey(winId, serverid);
+    const mkeyStr = mkey.toString();
+    if (this.sftpMap.has(mkeyStr)) {
+      return this.sftpMap.get(mkeyStr);
     }
     return null;
   }
@@ -521,6 +946,18 @@ export class SshRemote {
     const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
     const mkeyStr = mkey.toString();
     const c = this.shellMap.get(mkeyStr);
+    if (c) {
+      await c.close();
+    }
+  }
+
+  static deleteSftpClient(mkeyStr: string) {
+    this.sftpMap.delete(mkeyStr);
+  }
+  static async deleteSftpServerClient(opts: SshConnectOptions) {
+    const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
+    const mkeyStr = mkey.toString();
+    const c = this.sftpMap.get(mkeyStr);
     if (c) {
       await c.close();
     }
