@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('main', {
         func(channel, ...args)
       });
     },
+    clear: (chan: string) => ipcRenderer.removeAllListeners(chan),
   },
 
   conf: {
@@ -98,10 +99,3 @@ contextBridge.exposeInMainWorld('main', {
   }
 
 });
-
-contextBridge.exposeInMainWorld('ipc', {
-  'send': (chan: string, data: any) => ipcRenderer.send(chan, data),
-  'on': (chan: string, fn: any) => ipcRenderer.on(chan, fn),
-  'clear': (chan: string) => ipcRenderer.removeAllListeners(chan),
-});
-
