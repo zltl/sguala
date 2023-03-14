@@ -4,18 +4,19 @@ import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
+import path from 'path';
 
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    icon: './src/icon',
+    icon: path.resolve(__dirname, 'src/icon.ico'),
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({
-    iconUrl: './src/icon.ico',
-    setupIcon: './src/icon.ico',
+    iconUrl: 'https://raw.githubusercontent.com/zltl/sguala/main/src/icon.ico',
+    setupIcon: path.resolve(__dirname, 'src/icon.ico'),
   }), new MakerZIP({}, ['darwin']), new MakerRpm({
     options: {
       icon: './src/icon.png',
