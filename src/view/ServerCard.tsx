@@ -162,19 +162,21 @@ export function ServerCard(props: ServerCardProps) {
           sx={{ cursor: 'move' }} ref={drop}>
           <Box ref={dragRef}>
             <Typography color={colorByOnline()} variant='h6'>{server.name}</Typography>
-            {!mouseEnter && <Typography variant='caption' >{server.username + "@" + server.host + ":" + server.port}</Typography>}
-            {mouseEnter && <Box sx={{ cursor: 'default' }}>
-              <Box>
-                <Box display='flex' >
-                  <IconButton sx={{ cursor: 'move' }}> <DragIndicatorIcon color="disabled" /> </IconButton>
-                  <IconButton onClick={() => gotoEditServer()}><EditIcon /> </IconButton>
-                  <IconButton onClick={() => startSftp()} ><DriveFileMoveIcon /> </IconButton>
-                  <IconButton sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon /> </IconButton>
+            <Box sx={{ height: '30px' }}>
+              {!mouseEnter && <Typography variant='caption' >{server.username + "@" + server.host + ":" + server.port}</Typography>}
+              {mouseEnter && <Box sx={{ cursor: 'default' }}>
+                <Box>
+                  <Box display='flex' >
+                    <IconButton sx={{ cursor: 'move' }}> <DragIndicatorIcon color="disabled" /> </IconButton>
+                    <IconButton onClick={() => gotoEditServer()}><EditIcon /> </IconButton>
+                    <IconButton onClick={() => startSftp()} ><DriveFileMoveIcon /> </IconButton>
+                    <IconButton sx={{ mr: 'auto' }} onClick={() => startShell()}><TerminalIcon /> </IconButton>
 
-                  <IconButton onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon /> </IconButton>
+                    <IconButton onClick={() => deleteServer()} sx={{ float: 'right' }}><DeleteIcon /> </IconButton>
+                  </Box>
                 </Box>
-              </Box>
-            </Box>}
+              </Box>}
+            </Box>
           </Box>
 
           <Box>
