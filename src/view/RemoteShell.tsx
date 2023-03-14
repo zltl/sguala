@@ -5,12 +5,13 @@ import { FitAddon } from 'xterm-addon-fit';
 import { parse as queryParse } from 'querystring';
 
 import "../xterm.css";
+import { ListItem } from '@mui/material';
 
 export function RemoteShell() {
 
   const [chanKey, setChanKey] = React.useState<string>(undefined);
   const [uuid, setUuid] = React.useState<string>(undefined);
-  const [cnt, setCnt] = React.useState<string>(undefined);
+  const [cnt, setCnt] = React.useState<number>(undefined);
   const [server, setServer] = React.useState<any>(undefined);
 
   const xtermDiv = React.createRef<HTMLDivElement>();
@@ -56,6 +57,27 @@ export function RemoteShell() {
         'cols': arg1.cols,
       });
     });
+
+    term.onSelectionChange(async () => {
+      console.log('onSelectionChange');
+      const selectedText = term.getSelection();
+      console.log('selectedText', selectedText);
+      if (selectedText && selectedText.length > 0) {
+        console.log("selectedText=", selectedText);
+        await window.navigator.clipboard.writeText(selectedText);
+      }
+    })
+
+    window.addEventListener('contextmenu', async () => {
+      console.log('rightclick');
+      const clipboard = await window.navigator.clipboard.readText();
+      console.log("clipboard=", clipboard);
+      main.ipc.send(schanKey, {
+        'op': 'data',
+        'data': clipboard,
+      });
+    });
+
 
     window.addEventListener('resize', () => {
       fitAddon.fit();

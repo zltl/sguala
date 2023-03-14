@@ -73,7 +73,7 @@ export function ShellPage() {
           onClick={() => setOpen(!open)}>
           <MenuIcon />
         </IconButton>
-        <Box display='inline-flex' sx={{marginLeft: 1}}>
+        <Box display='inline-flex' sx={{ marginLeft: 1 }}>
           <Typography sx={{ color: theme.palette.background.default }}>
             {t(curPage.name)}
           </Typography>

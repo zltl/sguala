@@ -211,14 +211,10 @@ export class SshClient {
         const ret: any[] = [];
         const prefDir = data.path + "/...";
         for (const item of list) {
-          const ic = {
-            name: item.filename,
-            fullPath: data.path + "/" + item.filename,
-          };
-
           const isDir = item.longname.startsWith('d')
           ret.push({
             name: item.filename,
+            fullPath: data.path + "/" + item.filename,
             path: prefDir,
             isDir: isDir,
             size: isDir ? 0 : item.attrs.size,
@@ -238,7 +234,10 @@ export class SshClient {
     const win = this.win;
     const targetDia = await dialog.showOpenDialog(this.win, {
       title: 'sguala - download to',
-      properties: ['openFile', 'openDirectory'],
+      properties: ['openFile'],
+      filters: [
+        { name: 'All Files', extensions: ['*'] }
+      ],
     });
     const localPath = targetDia.filePaths[0];
     const tranferPutOne = async (localF: any, remotePath: string, started = false, curUuid?: string) => {
@@ -253,6 +252,7 @@ export class SshClient {
           'remoteFullPath': remotePathConc,
           'localFullPath': localF.fullPath,
           'uuid': curUuid,
+          'isEnd': localF.isDir,
         });
       }
 
@@ -288,6 +288,7 @@ export class SshClient {
             'remoteFullPath': remotePathConc + '/' + f,
             'localFullPath': localFPath,
             'uuid': uid,
+            'isEnd': stat.isDirectory(),
           });
         }
         for (const f of flist) {
@@ -408,6 +409,7 @@ export class SshClient {
           'remoteFullPath': remoteF.fullPath,
           'localFullPath': localPathConc,
           'uuid': curUuid,
+          isEnd: remoteF.isDir,
         });
       }
       console.log(`transfering ${JSON.stringify(remoteF)} to ${localPathConc} ${curUuid}`);
@@ -440,6 +442,7 @@ export class SshClient {
                 'fullPath': remoteF.fullPath + '/' + fent.filename,
                 'localFullPath': path.join(localPathConc, fent.filename),
                 'uuid': xuuid,
+                'isEnd': fent.longname.startsWith('d'),
               });
             }
             for (const fent of list) {
@@ -490,6 +493,7 @@ export class SshClient {
                 'transfered': total,
                 'fsize': fsize,
                 'isEnd': false,
+                'speed': speed,
                 'remoteFullPath': remoteF.fullPath,
                 'localFullPath': localPathConc,
               });
@@ -532,7 +536,7 @@ export class SshClient {
         });
       }
     };
-    await tranferOne(data.remoteF, localPath);
+    await tranferOne(data.remoteF, localPath, false);
   }
 
   sftp = async (): Promise<void> => {
