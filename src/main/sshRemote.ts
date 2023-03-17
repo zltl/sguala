@@ -5,6 +5,7 @@ import ssh2, { Client } from "ssh2";
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from "fs";
+import conf from "./conf";
 
 export class SshClientMapKey {
   windowId: number;
@@ -89,6 +90,7 @@ type SshClientType = 'ssh' | 'shell' | 'sftp';
 
 export class SshClient {
   c: Client;
+  hopC: SshClient;
   opts: SshConnectOptions;
   ctype: SshClientType;
   state = SshClientState.Disconnected;
@@ -117,6 +119,75 @@ export class SshClient {
   }
 
   connect = async (): Promise<void> => {
+    if (this.opts.useHop) {
+      const hopS = conf.getServer(this.opts.hopServerUuid);
+      if (!hopS) {
+        throw new Error("hop server not found");
+      }
+
+      const hopC = new SshClient(new Client(), { ...hopS, windowId: this.opts.windowId }, 'ssh');
+      this.hopC = hopC;
+      await hopC.connect();
+      if (hopC.state !== SshClientState.Connected) {
+        throw new Error("hop server not connected");
+      }
+
+      this.state = SshClientState.Connecting;
+      this.c = new Client();
+      return new Promise((resolve, reject) => {
+        hopC.c.forwardOut('127.0.0.1', 0, this.opts.host, this.opts.port, (err, stream) => {
+          if (err) {
+            console.log('forwardOut error:', err);
+            this.state = SshClientState.Disconnected;
+            return;
+          }
+          this.c.on("ready", () => {
+            this.err = null;
+            console.log("connect: ssh ready");
+            this.state = SshClientState.Connected;
+            this.hopC.close();
+            resolve();
+          });
+          this.c.on("error", (err) => {
+            this.err = err;
+            console.log("connect: ssh error", err);
+            this.hopC.close();
+            this.state = SshClientState.Disconnected;
+            this.c.end();
+            this.c.destroy();
+            reject(err);
+          });
+          this.c.on('timeout', () => {
+            this.hopC.close();
+            this.err = "timeout";
+            console.log("connect: ssh timeout");
+            this.state = SshClientState.Disconnected;
+            reject(new Error("ssh timeout"));
+          });
+          this.c.on("end", () => {
+            this.hopC.close();
+            console.log("connect: ssh end");
+            this.state = SshClientState.Disconnected;
+          });
+          if (this.opts.usePassword) {
+            this.c.connect({
+              sock: stream,
+              username: this.opts.username,
+              password: this.opts.password,
+            });
+          } else {
+            this.c.connect({
+              sock: stream,
+              username: this.opts.username,
+              privateKey: this.opts.privateKey,
+            });
+          }
+        });
+      });
+    }
+
+
+
     console.log(`connecting to: ${this.opts.host}`);
     this.state = SshClientState.Connecting;
     this.c = new Client();
@@ -136,14 +207,12 @@ export class SshClient {
         this.c.destroy();
         reject(err);
       });
-      /*
       this.c.on('timeout', () => {
         this.err = "timeout";
         console.log("connect: ssh timeout");
         this.state = SshClientState.Disconnected;
         reject(new Error("ssh timeout"));
       });
-            */
       this.c.on("end", () => {
         console.log("connect: ssh end");
         this.state = SshClientState.Disconnected;
