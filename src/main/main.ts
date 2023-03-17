@@ -42,7 +42,6 @@ const createWindow = async () => {
     height: 600,
     width: 800,
     autoHideMenuBar: true,
-    // frame: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#1976d2',
