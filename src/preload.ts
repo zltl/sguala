@@ -1,7 +1,7 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, shell } from 'electron';
 
 contextBridge.exposeInMainWorld('versions', {
   node: () => process.versions.node,
@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld('main', {
 
     moveServer: async (groupUuid: string, serverUuid: string, targetGroupUuid: string, targetServerUuid: string) => {
       return await ipcRenderer.invoke('conf-move-server', groupUuid, serverUuid, targetGroupUuid, targetServerUuid);
+    },
+
+    updateInterval: async (interval: number) => {
+      return await ipcRenderer.invoke('update-fetch-interval', interval);
     }
   },
 
@@ -96,6 +100,12 @@ contextBridge.exposeInMainWorld('main', {
     sftp: async (serverUuid: string, cnt: number): Promise<any> => {
       return await ipcRenderer.invoke('remote-sftp', serverUuid, cnt);
     }
-  }
+  },
+
+  shell: {
+    openExternal: (url: string) => {
+      shell.openExternal(url);
+    },
+  },
 
 });

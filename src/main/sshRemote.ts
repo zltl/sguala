@@ -651,6 +651,9 @@ export class SshClient {
         }
 
         win.setSize(800, 400);
+
+        stream.write('export TERM=xterm-256color\n');
+
         ipcMain.on(chanKey, async (ev, data) => {
           if (data.op === 'data') {
             stream.write(data.data);

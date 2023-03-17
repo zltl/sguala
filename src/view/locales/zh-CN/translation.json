@@ -15,5 +15,7 @@
   "User Name": "用户名",
   "Password": "密码",
   "Use password instead of ssh-key": "使用密码登录",
-  "Ssh private key pem": "SSH 私钥内容"
+  "Ssh private key pem": "SSH 私钥内容",
+  "Upload": "上传",
+  "Download": "下载"
 }

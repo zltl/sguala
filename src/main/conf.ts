@@ -51,6 +51,7 @@ export class AlertConf {
   diskAlertForValue = 5
   upAlertForValue = 3
   mailInterval = 120
+  fetchInterval = 10
   updateTime = new Date().toISOString()
 }
 
@@ -199,6 +200,12 @@ export default {
 
   getServer: (uuid: string): Server => {
     return serverUuidMap.get(uuid);
+  },
+
+  updateFetchInterval: async (interval: number) => {
+    config.alert.fetchInterval = interval;
+    await storeConf(config);
+    await loadConfig();
   },
 
 };

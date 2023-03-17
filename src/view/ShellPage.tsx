@@ -20,6 +20,9 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import { AddGroupPage } from './AddGroupPage';
 import { Observer } from './Observer';
 import { Stack } from '@mui/material';
+import { SettingPage } from './SettingPage';
+import SettingsIcon from '@mui/icons-material/Settings';
+
 
 const drawerWidth = 240;
 const appBarHeight = '2.1em';
@@ -34,6 +37,7 @@ export function ShellPage() {
   // page: name, page, icon
   const pages = [
     { name: 'sguala', page: <DashboardPage />, icon: <InsightsIcon /> },
+    { name: 'setting', page: <SettingPage />, icon: <SettingsIcon /> },
   ];
 
   const [open, setOpen] = React.useState(false);

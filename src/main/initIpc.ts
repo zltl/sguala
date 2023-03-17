@@ -260,4 +260,9 @@ export function initIpc() {
     await conf.load();
   });
 
+  ipcMain.handle('update-fetch-interval', async (event, interval: number) => {
+    console.log('update-fetch-interval', interval);
+    await conf.updateFetchInterval(interval);
+  });
+
 }
