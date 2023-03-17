@@ -54,7 +54,6 @@ export function SftpProgress({ uuid, remote, local, dir }: { uuid: string, remot
 
   return (
     <div style={{ width: '100%' }}>
-      <Divider />
       <Grid container spacing={2} sx={{ width: '100%' }}>
         <Grid item xs={1}>
           {direIcon}
@@ -94,6 +93,7 @@ export function SftpProgress({ uuid, remote, local, dir }: { uuid: string, remot
         </Grid>
 
       </Grid>
+      <Divider />
     </div>
   );
 
