@@ -141,7 +141,7 @@ function updateMaps() {
   }
   for await (const e of fs.watch(configFilePath)) {
     if (e.filename) {
-      console.log("config file changed", e.eventType, e.filename);
+      console.log("inotify", e.eventType, e.filename);
       await loadConfig();
     }
   }

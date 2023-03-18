@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('main', {
     on: (channel: string, func: any) => {
       console.log(`registering ${channel} listener`);
       ipcRenderer.on(channel, (event: any, ...args: any) => {
-        console.log(`received ${channel} event`, event, args)
+        // console.log(`received ${channel} event`, event, args)
         func(channel, ...args)
       });
     },
