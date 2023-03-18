@@ -88,8 +88,9 @@ const createShellWIndow = async (uuid: string) => {
   }
   SshRemote.shell({ ...server, windowId: shellCnt }, shellWindow);
 
+  const tCnt = shellCnt;
   shellWindow.on('closed', () => {
-    SshRemote.deleteShellServerClient({ ...server, windowId: shellCnt });
+    SshRemote.deleteShellServerClient({ ...server, windowId: tCnt });
   });
 
   shellCnt++;
@@ -127,8 +128,9 @@ const createSftpWindow = async (uuid: string) => {
   }
   SshRemote.sftp({ ...server, windowId: shellCnt }, sftpWindow);
 
+  const tmpCnt = shellCnt;
   sftpWindow.on('closed', () => {
-    SshRemote.deleteSftpServerClient({ ...server, windowId: shellCnt });
+    SshRemote.deleteSftpServerClient({ ...server, windowId: tmpCnt });
   });
 
   shellCnt++;

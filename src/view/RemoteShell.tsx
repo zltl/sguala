@@ -92,7 +92,6 @@ export function RemoteShell() {
     });
 
     main.ipc.on(schanKey, (event: any, data: any) => {
-      console.log("on", schanKey, data);
       if (data.op === "data") {
         term.write(data.data);
       }

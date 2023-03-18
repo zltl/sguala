@@ -664,7 +664,7 @@ export class SshClient {
 
         stream.on('close', () => {
           ipcMain.removeAllListeners(chanKey);
-          console.log('shell closed');
+          console.log("shell closed");
           try {
             win.send(chanKey, {
               'op': 'data',
@@ -685,7 +685,7 @@ export class SshClient {
           }
         });
         stream.on('error', (err: any) => {
-          console.log('error...');
+          console.log('shell error...', err);
         });
         resolve();
       });
@@ -736,21 +736,18 @@ export class SshClient {
 
   close = async (): Promise<void> => {
     if (this.ctype == 'shell') {
+      console.log(`delete shell from map ${this.mkeyStr()}`);
       SshRemote.deleteShellClient(this.mkeyStr());
     } else if (this.ctype === 'ssh') {
+      console.log(`delete ssh from map ${this.mkeyStr()}`);
       SshRemote.deleteClient(this.mkeyStr());
     } else {
       // sftp
+      console.log(`delete sftp from map ${this.mkeyStr()}`);
       SshRemote.deleteSftpClient(this.mkeyStr());
     }
-    return new Promise((resolve, reject) => {
-      this.c.on("close", () => {
-        console.log("ssh close");
-        resolve();
-      });
-      this.c.end();
-      this.c.destroy();
-    });
+    this.c.end();
+    this.c.destroy();
   }
 
   getCpuPercent = async (): Promise<number> => {
@@ -1019,9 +1016,11 @@ export class SshRemote {
     this.shellMap.delete(mkeyStr);
   }
   static async deleteShellServerClient(opts: SshConnectOptions) {
+    console.log("deleteShellServerClient delete ", opts.uuid, opts.windowId);
     const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
     const mkeyStr = mkey.toString();
     const c = this.shellMap.get(mkeyStr);
+    console.log(`deleteShellServerClient: ${mkeyStr}`);
     if (c) {
       await c.close();
     }
