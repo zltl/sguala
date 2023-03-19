@@ -933,12 +933,12 @@ export class SshRemote {
   static client(opts: SshConnectOptions): SshClient {
     const mkey = new SshClientMapKey(opts.windowId, opts.uuid);
     const mkeyStr = mkey.toString();
-    console.log(`SshRemote.client.key: ${mkeyStr}`);
+    // console.log(`SshRemote.client.key: ${mkeyStr}`);
     if (this.clientMap.has(mkeyStr)) {
-      console.log(`SshRemote.client: ${mkeyStr} found`);
+      //  console.log(`SshRemote.client: ${mkeyStr} found`);
       return this.clientMap.get(mkeyStr);
     }
-    console.log(`SshRemote.client: ${mkeyStr} not found`);
+    // console.log(`SshRemote.client: ${mkeyStr} not found`);
     const c = new SshClient(null, opts, 'ssh');
     this.clientMap.set(mkeyStr, c);
     return c;

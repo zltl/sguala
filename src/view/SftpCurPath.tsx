@@ -18,7 +18,7 @@ export function SftpCurPath({ path, setPath }: { path: string, setPath: (path: s
   }, [path]);
 
   return (
-    <div>
+    <div style={{height: '30px'}}>
       {useTexField && <ClickAwayListener
         onClickAway={() => { setPath(inputText); setUseTexField(false); }}>
         <Box>
