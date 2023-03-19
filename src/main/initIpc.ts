@@ -133,7 +133,6 @@ export function initIpc() {
   });
 
   ipcMain.handle('remote-server-stat', async (event, serverUuid: any): Promise<ServerStat> => {
-    console.log("remote-server-stat: ", serverUuid);
     const server = conf.getServer(serverUuid);
     if (!server) {
       return emptyServerStat();
@@ -145,7 +144,6 @@ export function initIpc() {
     });
 
     const stat = await remote.getStat();
-    console.log(`remote-server-stat response: `, JSON.stringify(stat));
     return stat;
   });
 

@@ -693,7 +693,7 @@ export class SshClient {
   }
 
   exec = async (cmd: string): Promise<RunOutput> => {
-    console.log(`exec: ${cmd}, on server ${this.opts.host}`);
+    // console.log(`exec: ${cmd}, on server ${this.opts.host}`);
     if (this.state !== SshClientState.Connected) {
       console.log("ssh client not connected");
       // connect first
@@ -720,10 +720,8 @@ export class SshClient {
         let stdout = "";
         let stderr = "";
         stream.on("close", (code: any, signal: any) => {
-          console.log("Stream :: close :: code: " + code + ", signal: " + signal);
           resolve({ code: code, stdout: stdout, stderr: stderr });
         }).on("end", () => {
-          console.log("Stream :: end");
           resolve({ stdout: stdout, stderr: stderr });
         }).on("data", (data: string) => {
           stdout += data;
@@ -912,13 +910,9 @@ export class SshClient {
 
   getStat = async (): Promise<ServerStat> => {
     try {
-      console.log(`getStat/CPU: ${this.opts.uuid} ${this.state}`);
       const cpu = await this.getCpuPercent();
-      console.log(`getStat/MEM: ${this.opts.uuid} ${this.state}`);
       const mem = await this.getMemStat();
-      console.log(`getStat/DISK: ${this.opts.uuid} ${this.state}`);
       const disk = await this.getDiskStat();
-      console.log(`getStat/END: ${this.opts.uuid} ${this.state}`);
       return {
         cpu: cpu,
         mem: mem,

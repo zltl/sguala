@@ -45,9 +45,7 @@ export function ServerCard(props: ServerCardProps) {
   const [mouseEnter, setMouseEnter] = React.useState(false);
 
   const updateInfoLoop = async () => {
-    // console.log("updateInfoLoop: ", JSON.stringify(server));
     const stat = await main.remote.getServerStat(server.uuid);
-    console.log("stat=", JSON.stringify(stat));
     setInfo(stat);
     return stat;
   };
