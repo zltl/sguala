@@ -303,12 +303,12 @@ export class SshClient {
     const win = this.win;
     const targetDia = await dialog.showOpenDialog(this.win, {
       title: 'sguala - download to',
-      properties: ['openFile'],
+      properties: ['openFile', 'multiSelections'],
       filters: [
         { name: 'All Files', extensions: ['*'] }
       ],
     });
-    const localPath = targetDia.filePaths[0];
+    const localPaths = targetDia.filePaths;
     const tranferPutOne = async (localF: any, remotePath: string, started = false, curUuid?: string) => {
       const remotePathConc = remotePath + '/' + localF.name;
       if (!curUuid) {
@@ -389,7 +389,7 @@ export class SshClient {
 
           let gtotal = 0;
           let gfsize = localF.size;
-          console.log('putting', localF.fullPath, 'to', remotePathConc);
+          console.log('real putting', localF.fullPath, 'to', remotePathConc);
           sftp.fastPut(localF.fullPath, remotePathConc, {
             step: async (total: number, nb: number, fsize: number) => {
               const curTs = new Date();
@@ -445,16 +445,32 @@ export class SshClient {
       }
     }
 
-    const stat = await fs.stat(localPath);
-    const localF = {
-      fullPath: localPath,
-      isDir: stat.isDirectory(),
-      name: path.basename(localPath),
-      size: stat.size,
-      mtime: stat.mtime.toLocaleString(),
-    };
-
-    await tranferPutOne(localF, data.remotePath);
+    const xuidm = new Map();
+    for (const localPath of localPaths) {
+      const stat = await fs.stat(localPath);
+      const uid = uuidv4();
+      xuidm.set(localPath, uid);
+      await win.webContents.send(chanKey, {
+        'op': 'transferStart',
+        'transferType': 'put',
+        'remoteFullPath': data.remotePath,
+        'localFullPath': localPath,
+        'uuid': uid,
+        'isEnd': stat.isDirectory(),
+      });
+    }
+    for (const localPath of localPaths) {
+      const stat = await fs.stat(localPath);
+      const f = path.basename(localPath);
+      const xuuid = xuidm.get(localPath);
+      await tranferPutOne({
+        fullPath: localPath,
+        isDir: stat.isDirectory(),
+        name: f,
+        size: stat.size,
+        mtime: stat.mtime.toLocaleString(),
+      }, data.remotePath, true, xuuid);
+    }
   };
 
   sftpGet = async (chanKey: string, sftp: any, data: any) => {
