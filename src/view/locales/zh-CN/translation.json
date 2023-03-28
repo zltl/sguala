@@ -17,5 +17,7 @@
   "Use password instead of ssh-key": "使用密码登录",
   "Ssh private key pem": "SSH 私钥内容",
   "Upload": "上传",
-  "Download": "下载"
+  "Download": "下载",
+  "Export Settings": "导出设置",
+  "Import Settings": "导入设置"
 }

@@ -1,6 +1,7 @@
-import { Config, ipcMain } from "electron";
+import { Config, ipcMain, dialog } from "electron";
 import conf, { Server, ServerGroup } from "./conf";
 import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
 
 export function initIpc() {
@@ -263,4 +264,60 @@ export function initIpc() {
     await conf.updateFetchInterval(interval);
   });
 
+  ipcMain.handle('conf-export-settings', async (event) => {
+    // dialog show save file
+    const result = await dialog.showSaveDialog({
+      title: 'Export Settings',
+      defaultPath: 'sguala.json',
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+      ],
+    });
+    const filePath = result.filePath;
+    if (!filePath) {
+      console.log('cancel export');
+      return;
+    }
+    console.log('export settings to', filePath);
+    const c = conf.get();
+    const data = JSON.stringify(c, null, 2);
+    await fs.writeFile(filePath, data);
+  });
+
+  ipcMain.handle('conf-import-settings', async (event) => {
+    // dialog show open file
+    const result = await dialog.showOpenDialog({
+      title: 'Import Settings',
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+      ],
+    });
+    const filePath = result.filePaths[0];
+    if (!filePath) {
+      console.log('cancel import');
+      return;
+    }
+    console.log('import settings from', filePath);
+    const data = await fs.readFile(filePath);
+    const nc = JSON.parse(data.toString());
+    const oc = conf.get();
+    // merge
+    for (const g of nc.groups) {
+      const og = oc.groups.find(gg => gg.name == g.name);
+      if (og) {
+        // merge group, add server from g to og if not exists
+        for (const s of g.servers) {
+          const os = og.servers.find(ss => ss.name == s.name);
+          if (!os) {
+            og.servers.push(s);
+          }
+        }
+      } else {
+        // add group
+        oc.groups.push(g);
+      }
+    }
+    // save
+    await conf.store(oc);
+  });
 }

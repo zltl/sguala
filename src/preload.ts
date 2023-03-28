@@ -75,7 +75,15 @@ contextBridge.exposeInMainWorld('main', {
 
     updateInterval: async (interval: number) => {
       return await ipcRenderer.invoke('update-fetch-interval', interval);
-    }
+    },
+
+    exportSettings: async () => {
+      return await ipcRenderer.invoke('conf-export-settings');
+    },
+
+    importSettings: async (settings: any) => {
+      return await ipcRenderer.invoke('conf-import-settings', settings);
+    },
   },
 
   remote: {

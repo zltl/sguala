@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 
 import { useTranslation } from 'react-i18next';
-import { Divider } from '@mui/material';
+import { Button, Divider } from '@mui/material';
 import Typography from '@mui/material/Typography';
 
 export function SettingPage() {
@@ -11,6 +11,15 @@ export function SettingPage() {
 
   const sgualaRepo = "https://github.com/zltl/sguala";
   const gpl3Url = "https://www.gnu.org/licenses/gpl-3.0.en.html";
+
+
+  const exportSettings = async () => {
+    main.conf.exportSettings();
+  };
+
+  const importSettings = async () => {
+    main.conf.importSettings();
+  }
 
   return (
     <Box>
@@ -28,9 +37,13 @@ export function SettingPage() {
       </Link>.
       <Divider />
 
-      <Typography>
-        没啥可设置的。
-      </Typography>
+      <Button onClick={() => exportSettings()} variant="contained">
+        {t('Export Settings')}
+      </Button>
+
+      <Button onClick={() => importSettings()} variant="contained">
+        {t('Import Settings')}
+      </Button>
 
     </Box>
   );
