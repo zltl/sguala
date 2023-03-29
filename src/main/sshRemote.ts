@@ -844,6 +844,18 @@ export class SshClient {
       const idled = Idle - PrevIdle
 
       const CPU_Percentage = (totald - idled) / totald
+
+      this.prev = {
+        user: user,
+        nice: nice,
+        system: system,
+        idle: idle,
+        iowait: iowait,
+        irq: irq,
+        softirq: softirq,
+        steal: steal,
+      };
+
       return CPU_Percentage;
     }
   }
