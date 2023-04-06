@@ -37,14 +37,17 @@ export function SettingPage() {
       </Link>.
       <Divider />
 
+      <div style={{marginTop: '2px'}}>
       <Button onClick={() => exportSettings()} variant="contained">
         {t('Export Settings')}
       </Button>
+      </div>
 
+      <div style={{marginTop: '2px'}}>
       <Button onClick={() => importSettings()} variant="contained">
         {t('Import Settings')}
       </Button>
-
+      </div>
     </Box>
   );
 }
