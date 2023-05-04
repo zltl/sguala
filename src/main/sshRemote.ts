@@ -725,6 +725,9 @@ export class SshClient {
         });
         throw new Error("ssh client not connected");
       }
+      if (this.state === SshClientState.Connecting) {
+        throw new Error("ssh client connecting");
+      }
     }
 
     return new Promise((resolve, reject) => {
