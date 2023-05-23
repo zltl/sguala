@@ -180,6 +180,7 @@ export class SshClient {
               sock: stream,
               username: this.opts.username,
               privateKey: this.opts.privateKey,
+              keepaliveInterval: 10*1000,
             });
           }
         });
@@ -224,8 +225,12 @@ export class SshClient {
       } else {
         opts.password = undefined;
       }
+      const realOpt = {
+        ...opts,
+        keepaliveInterval: 10000,
+      };
 
-      this.c.connect(opts);
+      this.c.connect(realOpt);
     });
   }
 
