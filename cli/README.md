@@ -33,6 +33,19 @@ Concrete `Host` aliases are monitored (wildcards like `Host *` are skipped). Sup
 
 - `HostName`, `User`, `Port`, `IdentityFile`, `ProxyJump`
 - `Include` files
+- **Groups**: an unindented `# comment` before Host blocks becomes a section header in the TUI (config sort). Examples:
+
+```sshconfig
+# production
+Host web-01
+  HostName 10.0.0.1
+
+# === staging ===
+Host web-stg
+  HostName 10.0.0.2
+```
+
+Indented comments inside a Host block are ignored for grouping. Disabled-looking lines like `# Host old` are not groups.
 
 `o` runs `ssh <alias>` so OpenSSH applies the rest of your config.
 
@@ -66,7 +79,7 @@ Legacy `hosts:` lists in this file are ignored.
 | `Enter` | Host detail |
 | `Esc` | Back / clear search |
 | `r` | Refresh now |
-| `/` | Search hosts (name / user / addr) |
+| `/` | Search hosts (name / group / user / addr) |
 | `s` | Cycle sort (config/cpu/mem/disk/lat) |
 | `o` | Open system `ssh` to selected Host alias |
 | `e` | Edit `~/.ssh/config` in `$EDITOR`, then reload |

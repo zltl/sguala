@@ -31,7 +31,7 @@ type Config struct {
 // Host is a concrete OpenSSH Host entry adapted for dialing / display.
 type Host struct {
 	Name      string // Host alias (ssh target name)
-	Group     string // unused for SSH wrap; kept for display column
+	Group     string // from # section comments in ~/.ssh/config
 	Addr      string // host:port
 	User      string
 	Identity  string // IdentityFile path
@@ -159,6 +159,7 @@ func AttachSSHHosts(cfg *Config) error {
 		}
 		hosts = append(hosts, Host{
 			Name:      h.Name,
+			Group:     h.Group,
 			Addr:      fmt.Sprintf("%s:%d", h.HostName, port),
 			User:      h.User,
 			Identity:  h.IdentityFile,

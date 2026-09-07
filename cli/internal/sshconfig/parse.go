@@ -16,11 +16,48 @@ type Host struct {
 	Port         int
 	IdentityFile string
 	ProxyJump    string
+	Group        string // from a preceding full-line # comment section
 }
 
 type hostBlock struct {
 	patterns []string
 	values   map[string]string
+	group    string
+}
+
+// parseGroupComment turns a full-line SSH config comment into a group name.
+// Examples: "# prod", "# === Staging ===", "# [db]" → "prod" / "Staging" / "db".
+// Returns "" if the comment is empty or looks like a disabled directive.
+func parseGroupComment(line string) string {
+	s := strings.TrimSpace(line)
+	if !strings.HasPrefix(s, "#") {
+		return ""
+	}
+	s = strings.TrimSpace(strings.TrimPrefix(s, "#"))
+	s = strings.Trim(s, "-=[] \t")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	first := strings.ToLower(strings.Fields(s)[0])
+	switch first {
+	case "host", "match", "include", "hostname", "user", "port",
+		"identityfile", "proxyjump", "proxycommand", "localforward",
+		"remoteforward", "dynamicforward":
+		return ""
+	}
+	return s
+}
+
+func isUnindentedComment(raw, trimmed string) bool {
+	if !strings.HasPrefix(trimmed, "#") {
+		return false
+	}
+	// Indented comments (inside Host blocks) are not group headers.
+	if strings.HasPrefix(raw, " ") || strings.HasPrefix(raw, "\t") {
+		return false
+	}
+	return true
 }
 
 func expandHome(p, home string) string {
@@ -83,9 +120,21 @@ func isWildcard(p string) bool {
 
 func parseContent(content string) (blocks []hostBlock, includes []string) {
 	var current *hostBlock
+	currentGroup := ""
 	sc := bufio.NewScanner(strings.NewReader(content))
 	for sc.Scan() {
-		line := strings.TrimSpace(stripComment(sc.Text()))
+		raw := sc.Text()
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		if isUnindentedComment(raw, trimmed) {
+			if g := parseGroupComment(trimmed); g != "" {
+				currentGroup = g
+			}
+			continue
+		}
+		line := strings.TrimSpace(stripComment(trimmed))
 		if line == "" {
 			continue
 		}
@@ -99,7 +148,11 @@ func parseContent(content string) (blocks []hostBlock, includes []string) {
 			if current != nil {
 				blocks = append(blocks, *current)
 			}
-			current = &hostBlock{patterns: append([]string{}, toks[1:]...), values: map[string]string{}}
+			current = &hostBlock{
+				patterns: append([]string{}, toks[1:]...),
+				values:   map[string]string{},
+				group:    currentGroup,
+			}
 		case "match":
 			if current != nil {
 				blocks = append(blocks, *current)
@@ -196,16 +249,7 @@ func mergeDefaults(specific, defaults map[string]string) map[string]string {
 	return merged
 }
 
-// LoadHosts reads ~/.ssh/config (and Includes) into concrete Host entries.
-func LoadHosts(configPath string) ([]Host, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	if configPath == "" {
-		configPath = filepath.Join(home, ".ssh", "config")
-	}
-	blocks := loadRecursive(configPath, home, map[string]struct{}{}, 0)
+func hostsFromBlocks(blocks []hostBlock, home string, expandIdentity bool) []Host {
 	star := map[string]string{}
 	for _, b := range blocks {
 		if len(b.patterns) == 1 && b.patterns[0] == "*" {
@@ -215,6 +259,7 @@ func LoadHosts(configPath string) ([]Host, error) {
 		}
 	}
 	byName := map[string]Host{}
+	order := make([]string, 0)
 	for _, b := range blocks {
 		vals := mergeDefaults(b.values, star)
 		user := vals["user"]
@@ -229,7 +274,10 @@ func LoadHosts(configPath string) ([]Host, error) {
 		}
 		var identity string
 		if vals["identityfile"] != "" {
-			identity = expandHome(vals["identityfile"], home)
+			identity = vals["identityfile"]
+			if expandIdentity {
+				identity = expandHome(identity, home)
+			}
 		}
 		for _, name := range b.patterns {
 			if name == "" || isWildcard(name) {
@@ -238,6 +286,9 @@ func LoadHosts(configPath string) ([]Host, error) {
 			hostName := vals["hostname"]
 			if hostName == "" {
 				hostName = name
+			}
+			if _, ok := byName[name]; !ok {
+				order = append(order, name)
 			}
 			byName[name] = Host{
 				Name:         name,
@@ -246,58 +297,34 @@ func LoadHosts(configPath string) ([]Host, error) {
 				Port:         port,
 				IdentityFile: identity,
 				ProxyJump:    vals["proxyjump"],
+				Group:        b.group,
 			}
 		}
 	}
-	out := make([]Host, 0, len(byName))
-	for _, h := range byName {
-		out = append(out, h)
+	out := make([]Host, 0, len(order))
+	for _, name := range order {
+		out = append(out, byName[name])
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	return out
+}
+
+// LoadHosts reads ~/.ssh/config (and Includes) into concrete Host entries.
+// Order follows first appearance in the config (and Include files).
+// Unindented `# section` comments set Group for following Host blocks.
+func LoadHosts(configPath string) ([]Host, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	if configPath == "" {
+		configPath = filepath.Join(home, ".ssh", "config")
+	}
+	blocks := loadRecursive(configPath, home, map[string]struct{}{}, 0)
+	return hostsFromBlocks(blocks, home, true), nil
 }
 
 // ParseContentForTest parses a config snippet without Includes.
 func ParseContentForTest(content string) []Host {
 	blocks, _ := parseContent(content)
-	star := map[string]string{}
-	for _, b := range blocks {
-		if len(b.patterns) == 1 && b.patterns[0] == "*" {
-			for k, v := range b.values {
-				star[k] = v
-			}
-		}
-	}
-	var out []Host
-	for _, b := range blocks {
-		vals := mergeDefaults(b.values, star)
-		user := vals["user"]
-		if user == "" {
-			user = "root"
-		}
-		port := 22
-		if vals["port"] != "" {
-			if p, err := strconv.Atoi(vals["port"]); err == nil {
-				port = p
-			}
-		}
-		for _, name := range b.patterns {
-			if name == "" || isWildcard(name) {
-				continue
-			}
-			hostName := vals["hostname"]
-			if hostName == "" {
-				hostName = name
-			}
-			out = append(out, Host{
-				Name:         name,
-				HostName:     hostName,
-				User:         user,
-				Port:         port,
-				IdentityFile: vals["identityfile"],
-				ProxyJump:    vals["proxyjump"],
-			})
-		}
-	}
-	return out
+	return hostsFromBlocks(blocks, "", false)
 }

@@ -424,6 +424,18 @@ func (m Model) viewOverview() string {
 	}
 
 	for i, s := range m.rows {
+		if m.sort == sortConfig {
+			prev := ""
+			if i > 0 {
+				prev = m.rows[i-1].Group
+			}
+			if s.Group != "" && s.Group != prev {
+				label := "── " + s.Group + " "
+				pad := max(0, m.width-1-runewidth.StringWidth(label))
+				b.WriteString(mutedStyle.Render(label + strings.Repeat("─", pad)))
+				b.WriteByte('\n')
+			}
+		}
 		line := formatRow(cfg, s, hostW, addrW)
 		if i == m.cursor {
 			line = selStyle.Render(line)
@@ -550,8 +562,11 @@ func (m Model) viewDetail(s metric.Snapshot) string {
 	var b strings.Builder
 	cfg := m.engine.Config()
 	title := s.Host
+	if s.Group != "" {
+		title = s.Group + " · " + s.Host
+	}
 	if h, ok := cfg.HostByName(s.Host); ok {
-		title = fmt.Sprintf("%s  %s@%s", s.Host, h.User, h.Addr)
+		title = fmt.Sprintf("%s  %s@%s", title, h.User, h.Addr)
 		if h.ProxyJump != "" {
 			title += "  via " + h.ProxyJump
 		}
