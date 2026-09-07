@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  cli-release:
+    name: Build CLI & publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test
+        env:
+          SGUALA_SECRET_FILE_ONLY: "1"
+        working-directory: cli
+        run: go test ./...
+
+      - name: Build binaries
+        working-directory: cli
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          version="${VERSION#v}"
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              ext=""
+              if [ "$os" = windows ]; then ext=".exe"; fi
+              out="dist/sguala_${version}_${os}_${arch}${ext}"
+              echo "building $out"
+              GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
+                go build -trimpath \
+                -ldflags="-s -w -X main.version=${version}" \
+                -o "$out" ./cmd/sguala
+            done
+          done
+          cd dist
+          sha256sum sguala_* > SHA256SUMS
+          ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: sguala ${{ github.ref_name }}
+          body_path: .github/release-body.md
+          draft: false
+          generate_release_notes: true
+          files: |
+            cli/dist/sguala_*
+            cli/dist/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

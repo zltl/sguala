@@ -6,16 +6,17 @@
 .PHONY: build run test tidy clean fmt
 
 BIN := bin/sguala
+VERSION ?= 0.2.0
 
 build:
 	@mkdir -p bin
-	go build -ldflags="-s -w -X main.version=0.1.0" -o $(BIN) ./cmd/sguala
+	go build -ldflags="-s -w -X main.version=$(VERSION)" -o $(BIN) ./cmd/sguala
 
 run: build
 	./$(BIN)
 
 test:
-	go test ./...
+	SGUALA_SECRET_FILE_ONLY=1 go test ./...
 
 tidy:
 	go mod tidy

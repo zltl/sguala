@@ -11,7 +11,7 @@ import (
 func TestHostMatches(t *testing.T) {
 	cfg := config.Config{
 		Hosts: []config.Host{
-			{Name: "web-01", Addr: "10.0.0.1:22", User: "deploy", ProxyJump: "bastion"},
+			{Name: "web-01", Addr: "10.0.0.1:22", User: "deploy", ProxyJump: "bastion", Group: "prod"},
 		},
 	}
 	s := metric.Snapshot{Host: "web-01"}
@@ -25,6 +25,7 @@ func TestHostMatches(t *testing.T) {
 		{"10.0.0", true},
 		{"deploy", true},
 		{"bastion", true},
+		{"prod", true},
 		{"db", false},
 	}
 	for _, c := range cases {

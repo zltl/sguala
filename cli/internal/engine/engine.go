@@ -7,6 +7,7 @@ import (
 
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/metric"
+	"github.com/zltl/sguala/cli/internal/secret"
 	"github.com/zltl/sguala/cli/internal/sshx"
 	"golang.org/x/crypto/ssh"
 )
@@ -155,10 +156,12 @@ func (e *Engine) collectHost(cfg config.Config, host config.Host) metric.Snapsho
 func (e *Engine) dialJump(cfg config.Config, jump string) (*ssh.Client, error) {
 	// If jump matches a configured host name, use that host's credentials.
 	if h, ok := cfg.HostByName(jump); ok {
+		pw, _, _ := secret.Get(h.Name)
 		return sshx.Dial(sshx.DialOptions{
 			Addr:     h.Addr,
 			User:     h.User,
 			Identity: h.Identity,
+			Password: pw,
 			Timeout:  cfg.Timeout.Dur(),
 		})
 	}
@@ -167,10 +170,12 @@ func (e *Engine) dialJump(cfg config.Config, jump string) (*ssh.Client, error) {
 	if user == "" {
 		user = "root"
 	}
+	pw, _, _ := secret.Get(jump)
 	return sshx.Dial(sshx.DialOptions{
-		Addr:    addr,
-		User:    user,
-		Timeout: cfg.Timeout.Dur(),
+		Addr:     addr,
+		User:     user,
+		Password: pw,
+		Timeout:  cfg.Timeout.Dur(),
 	})
 }
 

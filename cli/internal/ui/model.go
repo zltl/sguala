@@ -18,6 +18,9 @@ import (
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/engine"
 	"github.com/zltl/sguala/cli/internal/metric"
+	"github.com/zltl/sguala/cli/internal/secret"
+	"github.com/zltl/sguala/cli/internal/sshconfig"
+	"github.com/zltl/sguala/cli/internal/xfer"
 )
 
 type tickMsg time.Time
@@ -25,43 +28,47 @@ type refreshDoneMsg struct{}
 type snapMsg metric.Snapshot
 
 type keyMap struct {
-	Up      key.Binding
-	Down    key.Binding
-	Enter   key.Binding
-	Back    key.Binding
-	Refresh key.Binding
-	Search  key.Binding
-	Sort    key.Binding
-	SSH     key.Binding
-	Edit    key.Binding
-	Help    key.Binding
-	Quit    key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	Enter    key.Binding
+	Back     key.Binding
+	Refresh  key.Binding
+	Search   key.Binding
+	Sort     key.Binding
+	SSH      key.Binding
+	Transfer key.Binding
+	Passwd   key.Binding
+	Edit     key.Binding
+	Help     key.Binding
+	Quit     key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.Search, k.SSH, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Search, k.SSH, k.Transfer, k.Passwd, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter, k.Back},
-		{k.Refresh, k.Search, k.Sort, k.SSH},
+		{k.Refresh, k.Search, k.Sort, k.SSH, k.Transfer, k.Passwd},
 		{k.Edit, k.Help, k.Quit},
 	}
 }
 
 var keys = keyMap{
-	Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("k/↑", "up")),
-	Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("j/↓", "down")),
-	Enter:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "detail")),
-	Back:    key.NewBinding(key.WithKeys("esc", "h"), key.WithHelp("esc", "back")),
-	Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
-	Search:  key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-	Sort:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
-	SSH:     key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open ssh")),
-	Edit:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit ssh config")),
-	Help:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-	Quit:    key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	Up:       key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("k/↑", "up")),
+	Down:     key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("j/↓", "down")),
+	Enter:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "detail")),
+	Back:     key.NewBinding(key.WithKeys("esc", "h"), key.WithHelp("esc", "back")),
+	Refresh:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
+	Search:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+	Sort:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
+	SSH:      key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open ssh")),
+	Transfer: key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "transfer")),
+	Passwd:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "set password")),
+	Edit:     key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit ssh config")),
+	Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+	Quit:     key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
 type sortMode int
@@ -94,7 +101,21 @@ type viewMode int
 const (
 	viewOverview viewMode = iota
 	viewDetail
+	viewTransfer
+	viewPasswd
 )
+
+type xferStep int
+
+const (
+	xferMenu xferStep = iota
+	xferGetRemote
+	xferGetLocal
+	xferPutLocal
+	xferPutRemote
+)
+
+var xferMenuItems = []string{"get (scp download)", "put (scp upload)", "sftp (interactive)"}
 
 type Model struct {
 	engine       *engine.Engine
@@ -102,6 +123,7 @@ type Model struct {
 	help         help.Model
 	keys         keyMap
 	search       textinput.Model
+	xferInput    textinput.Model
 
 	width  int
 	height int
@@ -113,6 +135,15 @@ type Model struct {
 	searching bool
 	query     string
 
+	xferHost   string
+	xferStep   xferStep
+	xferCursor int
+	xferRemote string
+	xferLocals []string
+
+	passwdHost string
+	passwdMsg  string
+
 	rows []metric.Snapshot // filtered+sorted view
 	err  string
 }
@@ -121,20 +152,26 @@ func New(eng *engine.Engine, settingsPath string) Model {
 	h := help.New()
 	h.ShowAll = false
 	ti := textinput.New()
-	ti.Placeholder = "search host / user / addr…"
+	ti.Placeholder = "search host / user / addr / group…"
 	ti.CharLimit = 64
 	ti.Width = 40
 	ti.Prompt = "/ "
+	xi := textinput.New()
+	xi.CharLimit = 512
+	xi.Width = 60
+	xi.Prompt = "> "
 	return Model{
 		engine:       eng,
 		settingsPath: settingsPath,
 		help:         h,
 		keys:         keys,
 		search:       ti,
+		xferInput:    xi,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
+	setTerminalTitle(defaultTermTitle)
 	return tea.Batch(tick(), m.doRefresh())
 }
 
@@ -172,6 +209,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.mode == viewTransfer {
+			return m.updateTransfer(msg)
+		}
+		if m.mode == viewPasswd {
+			return m.updatePasswd(msg)
+		}
+
 		if m.searching {
 			switch msg.String() {
 			case "esc", "ctrl+c":
@@ -221,6 +265,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.Edit):
 			return m, m.openEditor()
+		case key.Matches(msg, m.keys.Transfer):
+			if len(m.rows) == 0 {
+				return m, nil
+			}
+			m.beginTransfer(m.rows[m.cursor].Host)
+			return m, textinput.Blink
+		case key.Matches(msg, m.keys.Passwd):
+			if len(m.rows) == 0 {
+				return m, nil
+			}
+			m.beginPasswd(m.rows[m.cursor].Host)
+			return m, textinput.Blink
 		case key.Matches(msg, m.keys.Back):
 			if m.query != "" {
 				m.query = ""
@@ -258,14 +314,225 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) beginTransfer(host string) {
+	m.mode = viewTransfer
+	m.xferHost = host
+	m.xferStep = xferMenu
+	m.xferCursor = 0
+	m.xferRemote = ""
+	m.xferLocals = nil
+	m.err = ""
+	m.xferInput.EchoMode = textinput.EchoNormal
+	m.xferInput.Blur()
+	m.xferInput.SetValue("")
+}
+
+func (m *Model) endTransfer() {
+	m.mode = viewOverview
+	m.xferStep = xferMenu
+	m.xferHost = ""
+	m.xferRemote = ""
+	m.xferLocals = nil
+	m.xferInput.Blur()
+	m.xferInput.SetValue("")
+	m.err = ""
+}
+
+func (m Model) updateTransfer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch m.xferStep {
+	case xferMenu:
+		switch {
+		case key.Matches(msg, m.keys.Back), msg.String() == "q":
+			m.endTransfer()
+			return m, nil
+		case key.Matches(msg, m.keys.Up):
+			if m.xferCursor > 0 {
+				m.xferCursor--
+			}
+			return m, nil
+		case key.Matches(msg, m.keys.Down):
+			if m.xferCursor < len(xferMenuItems)-1 {
+				m.xferCursor++
+			}
+			return m, nil
+		case key.Matches(msg, m.keys.Enter):
+			switch m.xferCursor {
+			case 0: // get
+				m.xferStep = xferGetRemote
+				m.xferInput.Placeholder = "remote path (e.g. /var/log/app.log)"
+				m.xferInput.SetValue("")
+				m.xferInput.Focus()
+				return m, textinput.Blink
+			case 1: // put
+				m.xferStep = xferPutLocal
+				m.xferInput.Placeholder = "local path(s), space-separated"
+				m.xferInput.SetValue("")
+				m.xferInput.Focus()
+				return m, textinput.Blink
+			case 2: // sftp
+				host := m.xferHost
+				m.endTransfer()
+				return m, m.runTool("sftp", xfer.SFTPArgs(host), "sftp "+host)
+			}
+		}
+		return m, nil
+	default:
+		switch msg.String() {
+		case "esc":
+			m.xferStep = xferMenu
+			m.xferInput.Blur()
+			m.xferInput.SetValue("")
+			m.err = ""
+			return m, nil
+		case "enter":
+			return m.submitXferPrompt()
+		}
+		var cmd tea.Cmd
+		m.xferInput, cmd = m.xferInput.Update(msg)
+		return m, cmd
+	}
+}
+
+func (m Model) submitXferPrompt() (tea.Model, tea.Cmd) {
+	val := strings.TrimSpace(m.xferInput.Value())
+	switch m.xferStep {
+	case xferGetRemote:
+		if val == "" {
+			m.err = "remote path required"
+			return m, nil
+		}
+		m.xferRemote = val
+		m.err = ""
+		m.xferStep = xferGetLocal
+		m.xferInput.Placeholder = "local path [.]"
+		m.xferInput.SetValue(".")
+		m.xferInput.Focus()
+		return m, textinput.Blink
+	case xferGetLocal:
+		if val == "" {
+			val = "."
+		}
+		host, remote := m.xferHost, m.xferRemote
+		m.endTransfer()
+		return m, m.runTool("scp", xfer.SCPGetArgs(host, remote, val, nil), "scp "+host)
+	case xferPutLocal:
+		locals := xfer.SplitLocalPaths(val)
+		if len(locals) == 0 {
+			m.err = "local path required"
+			return m, nil
+		}
+		m.xferLocals = locals
+		m.err = ""
+		m.xferStep = xferPutRemote
+		m.xferInput.Placeholder = "remote directory [.]"
+		m.xferInput.SetValue(".")
+		m.xferInput.Focus()
+		return m, textinput.Blink
+	case xferPutRemote:
+		if val == "" {
+			val = "."
+		}
+		host, locals := m.xferHost, m.xferLocals
+		args, err := xfer.SCPPutArgs(host, locals, val, nil)
+		if err != nil {
+			m.err = err.Error()
+			return m, nil
+		}
+		m.endTransfer()
+		return m, m.runTool("scp", args, "scp "+host)
+	default:
+		return m, nil
+	}
+}
+
+func (m Model) runTool(name string, args []string, title string) tea.Cmd {
+	if err := xfer.RequireTool(name); err != nil {
+		return func() tea.Msg { return refreshDoneMsg{} }
+	}
+	c := exec.Command(name, args...)
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	if title == "" {
+		title = name
+	}
+	return execWithTitle(title, c, func(err error) tea.Msg {
+		return refreshDoneMsg{}
+	})
+}
+
+func (m *Model) beginPasswd(host string) {
+	m.mode = viewPasswd
+	m.passwdHost = host
+	m.passwdMsg = ""
+	m.err = ""
+	m.xferInput.EchoMode = textinput.EchoPassword
+	m.xferInput.EchoCharacter = '•'
+	m.xferInput.Placeholder = "password (empty = delete stored)"
+	m.xferInput.SetValue("")
+	m.xferInput.Focus()
+	if secret.Has(host) {
+		m.passwdMsg = "stored password present — enter new value or leave empty to delete"
+	} else {
+		kr, file := secret.Status()
+		if kr {
+			m.passwdMsg = "will prefer OS keyring; fallback file: " + file
+		} else {
+			m.passwdMsg = "no OS keyring — storing in " + file + " (mode 0600)"
+		}
+	}
+}
+
+func (m *Model) endPasswd() {
+	m.mode = viewOverview
+	m.passwdHost = ""
+	m.passwdMsg = ""
+	m.xferInput.EchoMode = textinput.EchoNormal
+	m.xferInput.Blur()
+	m.xferInput.SetValue("")
+	m.err = ""
+}
+
+func (m Model) updatePasswd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.endPasswd()
+		return m, nil
+	case "enter":
+		pw := m.xferInput.Value() // do not TrimSpace — passwords may have spaces (rare)
+		host := m.passwdHost
+		var backend secret.Backend
+		var err error
+		if pw == "" {
+			backend, err = secret.Delete(host)
+		} else {
+			backend, err = secret.Set(host, pw)
+		}
+		m.endPasswd()
+		if err != nil {
+			m.err = err.Error()
+			return m, nil
+		}
+		if pw == "" {
+			m.err = fmt.Sprintf("password cleared (%s)", backend)
+		} else {
+			m.err = fmt.Sprintf("password saved via %s", backend)
+		}
+		return m, m.doRefresh()
+	}
+	var cmd tea.Cmd
+	m.xferInput, cmd = m.xferInput.Update(msg)
+	return m, cmd
+}
+
 func hostMatches(cfg config.Config, s metric.Snapshot, q string) bool {
 	q = strings.ToLower(strings.TrimSpace(q))
 	if q == "" {
 		return true
 	}
-	hay := strings.ToLower(s.Host + " " + s.Group)
+	hay := strings.ToLower(s.Host + " " + hostGroup(cfg, s))
 	if h, ok := cfg.HostByName(s.Host); ok {
-		hay += " " + strings.ToLower(h.Addr+" "+h.User+" "+h.Name+" "+h.ProxyJump)
+		hay += " " + strings.ToLower(h.Addr+" "+h.User+" "+h.Name+" "+h.Group+" "+h.ProxyJump)
 	}
 	return strings.Contains(hay, q)
 }
@@ -315,7 +582,7 @@ func (m Model) openSSH(hostName string) tea.Cmd {
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	return tea.ExecProcess(c, func(err error) tea.Msg {
+	return execWithTitle("ssh "+hostName, c, func(err error) tea.Msg {
 		if err != nil {
 			return snapMsg{}
 		}
@@ -333,12 +600,26 @@ func (m Model) openEditor() tea.Cmd {
 	if err != nil {
 		return nil
 	}
-	c := exec.Command(editor, sshPath)
+	file := sshPath
+	line := 0
+	alias := ""
+	if len(m.rows) > 0 {
+		alias = m.rows[m.cursor].Host
+		if loc, ok := sshconfig.FindHostLocation(sshPath, alias); ok {
+			file = loc.Path
+			line = loc.Line
+		}
+	}
+	c := sshconfig.EditorCommand(editor, file, line)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+	title := "edit ssh config"
+	if alias != "" {
+		title = "edit " + alias
+	}
 	eng := m.engine
-	return tea.ExecProcess(c, func(err error) tea.Msg {
+	return execWithTitle(title, c, func(err error) tea.Msg {
 		next := eng.Config()
 		if e := config.AttachSSHHosts(&next); e == nil {
 			eng.SetConfig(next)
@@ -380,6 +661,9 @@ func (m Model) View() string {
 	if m.query != "" || m.searching {
 		fmt.Fprintf(&b, "  %s", mutedStyle.Render(fmt.Sprintf("filter:%q %d hits", strings.TrimSpace(m.query), len(m.rows))))
 	}
+	if m.err != "" && m.mode != viewPasswd && m.mode != viewTransfer {
+		fmt.Fprintf(&b, "\n%s", mutedStyle.Render(m.err))
+	}
 	b.WriteByte('\n')
 	if m.searching {
 		b.WriteString(m.search.View())
@@ -388,7 +672,11 @@ func (m Model) View() string {
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", max(10, m.width-1))))
 	b.WriteByte('\n')
 
-	if m.mode == viewDetail && len(m.rows) > 0 {
+	if m.mode == viewTransfer {
+		b.WriteString(m.viewTransfer())
+	} else if m.mode == viewPasswd {
+		b.WriteString(m.viewPasswd())
+	} else if m.mode == viewDetail && len(m.rows) > 0 {
 		b.WriteString(m.viewDetail(m.rows[m.cursor]))
 	} else {
 		b.WriteString(m.viewOverview())
@@ -397,8 +685,69 @@ func (m Model) View() string {
 	b.WriteByte('\n')
 	if m.searching {
 		b.WriteString(helpStyle.Render("enter confirm · esc clear"))
+	} else if m.mode == viewTransfer || m.mode == viewPasswd {
+		b.WriteString(helpStyle.Render("enter confirm · esc back"))
 	} else {
 		b.WriteString(helpStyle.Render(m.help.View(m.keys)))
+	}
+	return b.String()
+}
+
+func (m Model) viewPasswd() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s  host %s\n\n", titleStyle.Render("password"), m.passwdHost)
+	if m.passwdMsg != "" {
+		b.WriteString(mutedStyle.Render(m.passwdMsg))
+		b.WriteByte('\n')
+	}
+	b.WriteString(m.xferInput.View())
+	b.WriteByte('\n')
+	return b.String()
+}
+
+func (m Model) viewTransfer() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s  host %s\n\n", titleStyle.Render("transfer"), m.xferHost)
+	if m.err != "" {
+		b.WriteString(errStyle.Render(m.err))
+		b.WriteByte('\n')
+	}
+	switch m.xferStep {
+	case xferMenu:
+		b.WriteString(mutedStyle.Render("choose action:"))
+		b.WriteByte('\n')
+		for i, item := range xferMenuItems {
+			line := "  " + item
+			if i == m.xferCursor {
+				line = selStyle.Render("> " + item)
+			}
+			b.WriteString(line)
+			b.WriteByte('\n')
+		}
+	case xferGetRemote:
+		b.WriteString("Download (scp get)\n")
+		b.WriteString(mutedStyle.Render("remote path:"))
+		b.WriteByte('\n')
+		b.WriteString(m.xferInput.View())
+		b.WriteByte('\n')
+	case xferGetLocal:
+		fmt.Fprintf(&b, "Download remote %s\n", m.xferRemote)
+		b.WriteString(mutedStyle.Render("local destination:"))
+		b.WriteByte('\n')
+		b.WriteString(m.xferInput.View())
+		b.WriteByte('\n')
+	case xferPutLocal:
+		b.WriteString("Upload (scp put)\n")
+		b.WriteString(mutedStyle.Render("local path(s):"))
+		b.WriteByte('\n')
+		b.WriteString(m.xferInput.View())
+		b.WriteByte('\n')
+	case xferPutRemote:
+		fmt.Fprintf(&b, "Upload %s\n", strings.Join(m.xferLocals, " "))
+		b.WriteString(mutedStyle.Render("remote directory:"))
+		b.WriteByte('\n')
+		b.WriteString(m.xferInput.View())
+		b.WriteByte('\n')
 	}
 	return b.String()
 }
@@ -406,9 +755,9 @@ func (m Model) View() string {
 func (m Model) viewOverview() string {
 	var b strings.Builder
 	cfg := m.engine.Config()
-	hostW, addrW := m.overviewColWidths(cfg)
+	groupW, hostW, addrW := m.overviewColWidths(cfg)
 
-	header := padRight("HOST", hostW) + " " + padRight("ADDR", addrW) +
+	header := padRight("GROUP", groupW) + " " + padRight("HOST", hostW) + " " + padRight("ADDR", addrW) +
 		fmt.Sprintf(" %-2s %6s %14s %14s %6s %6s", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteByte('\n')
@@ -425,18 +774,19 @@ func (m Model) viewOverview() string {
 
 	for i, s := range m.rows {
 		if m.sort == sortConfig {
+			g := hostGroup(cfg, s)
 			prev := ""
 			if i > 0 {
-				prev = m.rows[i-1].Group
+				prev = hostGroup(cfg, m.rows[i-1])
 			}
-			if s.Group != "" && s.Group != prev {
-				label := "── " + s.Group + " "
+			if g != "" && g != prev {
+				label := "── " + g + " "
 				pad := max(0, m.width-1-runewidth.StringWidth(label))
 				b.WriteString(mutedStyle.Render(label + strings.Repeat("─", pad)))
 				b.WriteByte('\n')
 			}
 		}
-		line := formatRow(cfg, s, hostW, addrW)
+		line := formatRow(cfg, s, groupW, hostW, addrW)
 		if i == m.cursor {
 			line = selStyle.Render(line)
 		} else if !s.Online {
@@ -450,23 +800,31 @@ func (m Model) viewOverview() string {
 	return b.String()
 }
 
-// overviewColWidths sizes HOST/ADDR from terminal width and visible content.
-// Metric columns stay fixed; leftover space goes to host/addr (prefer no truncation).
-func (m Model) overviewColWidths(cfg config.Config) (hostW, addrW int) {
+// overviewColWidths sizes GROUP/HOST/ADDR from terminal width and visible content.
+// Metric columns stay fixed; leftover space goes to the three text columns.
+func (m Model) overviewColWidths(cfg config.Config) (groupW, hostW, addrW int) {
 	// " ST CPU...LAT" fixed tail: space+2+space+6+space+14+space+14+space+6+space+6
 	const fixedTail = 1 + 2 + 1 + 6 + 1 + 14 + 1 + 14 + 1 + 6 + 1 + 6
 	termW := m.width
 	if termW <= 0 {
 		termW = 80
 	}
-	avail := termW - 1 - fixedTail // gap between HOST and ADDR is counted below
-	if avail < 24 {
-		avail = 24
+	avail := termW - 1 - fixedTail // gaps between GROUP/HOST/ADDR counted below
+	if avail < 30 {
+		avail = 30
 	}
 
+	maxGroup := runewidth.StringWidth("GROUP")
 	maxHost := runewidth.StringWidth("HOST")
 	maxAddr := runewidth.StringWidth("ADDR")
 	for _, s := range m.rows {
+		g := hostGroup(cfg, s)
+		if g == "" {
+			g = "—"
+		}
+		if w := runewidth.StringWidth(g); w > maxGroup {
+			maxGroup = w
+		}
 		if w := runewidth.StringWidth(s.Host); w > maxHost {
 			maxHost = w
 		}
@@ -476,39 +834,52 @@ func (m Model) overviewColWidths(cfg config.Config) (hostW, addrW int) {
 		}
 	}
 
-	// One space between HOST and ADDR.
-	gap := 1
-	if maxHost+gap+maxAddr <= avail {
-		return maxHost, maxAddr
+	const gaps = 2 // spaces between the three text columns
+	if maxGroup+gaps+maxHost+maxAddr <= avail {
+		return maxGroup, maxHost, maxAddr
 	}
 
-	// Shrink proportionally, keep readable floors.
-	const minHost, minAddr = 10, 14
-	hostW = maxHost
-	addrW = maxAddr
-	budget := avail - gap
-	if hostW+addrW > budget {
-		// Prefer giving ADDR more room (user@host:port is usually longer).
+	const minGroup, minHost, minAddr = 6, 8, 12
+	groupW, hostW, addrW = maxGroup, maxHost, maxAddr
+	budget := avail - gaps
+	if groupW+hostW+addrW > budget {
+		// Prefer ADDR, then HOST, then GROUP.
+		groupW = budget * 1 / 5
 		hostW = budget * 2 / 5
-		addrW = budget - hostW
+		addrW = budget - groupW - hostW
+	}
+	if groupW < minGroup {
+		groupW = minGroup
 	}
 	if hostW < minHost {
 		hostW = minHost
-		addrW = budget - hostW
 	}
 	if addrW < minAddr {
 		addrW = minAddr
-		hostW = budget - addrW
 	}
-	if hostW < 6 {
-		hostW = 6
-		addrW = budget - hostW
+	if groupW+hostW+addrW > budget {
+		overflow := groupW + hostW + addrW - budget
+		cut := min(overflow, max(0, addrW-minAddr))
+		addrW -= cut
+		overflow -= cut
+		cut = min(overflow, max(0, hostW-minHost))
+		hostW -= cut
+		overflow -= cut
+		groupW = max(minGroup, groupW-overflow)
+		hostW = max(minHost, hostW)
+		addrW = max(minAddr, budget-groupW-hostW)
 	}
-	if addrW < 8 {
-		addrW = 8
-		hostW = max(6, budget-addrW)
+	return groupW, hostW, addrW
+}
+
+func hostGroup(cfg config.Config, s metric.Snapshot) string {
+	if s.Group != "" {
+		return s.Group
 	}
-	return hostW, addrW
+	if h, ok := cfg.HostByName(s.Host); ok {
+		return h.Group
+	}
+	return ""
 }
 
 func hostAddr(cfg config.Config, s metric.Snapshot) string {
@@ -532,12 +903,16 @@ func isHighUsage(s metric.Snapshot) bool {
 	return false
 }
 
-func formatRow(cfg config.Config, s metric.Snapshot, hostW, addrW int) string {
+func formatRow(cfg config.Config, s metric.Snapshot, groupW, hostW, addrW int) string {
 	st := "○"
 	if s.Online {
 		st = okStyle.Render("●")
 	} else {
 		st = errStyle.Render("○")
+	}
+	group := hostGroup(cfg, s)
+	if group == "" {
+		group = "—"
 	}
 	addr := hostAddr(cfg, s)
 	cpu := "—"
@@ -554,7 +929,7 @@ func formatRow(cfg config.Config, s metric.Snapshot, hostW, addrW int) string {
 		load = fmt.Sprintf("%5.2f", s.Load1)
 		lat = fmt.Sprintf("%4dms", s.Latency.Milliseconds())
 	}
-	return padRight(s.Host, hostW) + " " + padRight(addr, addrW) +
+	return padRight(group, groupW) + " " + padRight(s.Host, hostW) + " " + padRight(addr, addrW) +
 		fmt.Sprintf(" %-2s %6s %14s %14s %6s %6s", st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
 }
 
@@ -562,8 +937,8 @@ func (m Model) viewDetail(s metric.Snapshot) string {
 	var b strings.Builder
 	cfg := m.engine.Config()
 	title := s.Host
-	if s.Group != "" {
-		title = s.Group + " · " + s.Host
+	if g := hostGroup(cfg, s); g != "" {
+		title = g + " · " + s.Host
 	}
 	if h, ok := cfg.HostByName(s.Host); ok {
 		title = fmt.Sprintf("%s  %s@%s", title, h.User, h.Addr)

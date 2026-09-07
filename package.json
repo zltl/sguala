@@ -1,8 +1,8 @@
 {
   "name": "sguala",
   "productName": "sguala",
-  "version": "2.0.5",
-  "description": "My Electron application description",
+  "version": "2.1.0",
+  "description": "Agentless Linux server monitor (Electron + CLI)",
   "main": ".webpack/main",
   "scripts": {
     "test": "electron-forge start -- --test",

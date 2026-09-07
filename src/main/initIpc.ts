@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
+import { migratePasswordOutOfServer, deleteHostPassword } from "./hostSecrets";
 import { loadSshConfigHosts } from "./sshConfig";
 
 const SSH_KEY_SKIP = new Set([
@@ -109,7 +110,7 @@ export function initIpc() {
   });
 
   ipcMain.handle('conf-add-server', async (event, s: any) => {
-    console.log('conf-add-server', JSON.stringify(s));
+    console.log('conf-add-server', JSON.stringify({ ...s, password: s?.password ? '***' : '' }));
     const c = conf.get();
     // g is the target group
     const g = conf.getGroup(s.groupUuid);
@@ -118,12 +119,15 @@ export function initIpc() {
       return { type: 'error', message: 'Group not exists, add server failed' };
     }
 
+    const migrated = await migratePasswordOutOfServer(s);
+    s.password = migrated.password;
+
     if (!s.uuid || s.uuid === '') {
       // new server
       s.uuid = uuidv4();
       const server = s as Server;
       g.servers.push(server);
-      console.log('server add ok: ', JSON.stringify(server));
+      console.log('server add ok: ', server.name);
     } else {
       // update server: delete first, then add
       // note that the server uuid is not changed, so we can find it by uuid
@@ -137,7 +141,7 @@ export function initIpc() {
       }
       const server = s as Server;
       g.servers.push(server);
-      console.log('server update ok: ', JSON.stringify(server));
+      console.log('server update ok: ', server.name);
     }
     await conf.store(c);
     await conf.load();
@@ -190,6 +194,9 @@ export function initIpc() {
     const server = g.servers[index];
     g.servers.splice(index, 1);
 
+    if (server?.name) {
+      try { await deleteHostPassword(server.name); } catch { /* ignore */ }
+    }
     await SshRemote.deleteServerClient({ ...server, windowId: 0 });
     await conf.store(conf.get());
     await conf.load();

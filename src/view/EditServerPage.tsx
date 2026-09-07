@@ -321,6 +321,7 @@ export function EditServerPage(props: Props) {
           type={showPassword ? "text" : "password"}
           sx={{ width: '100%' }}
           value={password}
+          helperText={t("Password stored separately hint")}
           onChange={(e) => setPassword(e.target.value.trim())}
           InputProps={{
             endAdornment: (<InputAdornment position='end'>

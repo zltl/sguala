@@ -6,6 +6,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from "fs";
 import conf from "./conf";
+import { resolveServerPassword } from "./hostSecrets";
 
 /** If host looks like "ip:port" / "name:port", split it. */
 function splitEmbeddedHostPort(host: string): { host: string; port: number } | null {
@@ -157,6 +158,10 @@ export class SshClient {
     if (embedded) {
       this.opts.host = embedded.host;
       this.opts.port = embedded.port;
+    }
+
+    if (this.opts.usePassword) {
+      this.opts.password = await resolveServerPassword(this.opts);
     }
 
     if (this.opts.useHop) {
@@ -347,12 +352,15 @@ export class SshClient {
   sftpPut = async (chanKey: string, sftp: any, data: any) => {
     const win = this.win;
     const targetDia = await dialog.showOpenDialog(this.win, {
-      title: 'sguala - download to',
-      properties: ['openFile', 'multiSelections'],
+      title: 'sguala - upload',
+      properties: ['openFile', 'openDirectory', 'multiSelections'],
       filters: [
         { name: 'All Files', extensions: ['*'] }
       ],
     });
+    if (targetDia.canceled || !targetDia.filePaths?.length) {
+      return;
+    }
     const localPaths = targetDia.filePaths;
     const tranferPutOne = async (localF: any, remotePath: string, started = false, curUuid?: string) => {
       const remotePathConc = remotePath + '/' + localF.name;
@@ -516,6 +524,8 @@ export class SshClient {
         mtime: stat.mtime.toLocaleString(),
       }, data.remotePath, true, xuuid);
     }
+    // Refresh listing after uploads finish.
+    await this.sftpDoLs(chanKey, sftp, { path: data.remotePath });
   };
 
   sftpGet = async (chanKey: string, sftp: any, data: any) => {
@@ -524,6 +534,9 @@ export class SshClient {
       title: 'sguala - download to',
       properties: ['openDirectory'],
     });
+    if (targetDia.canceled || !targetDia.filePaths?.length) {
+      return;
+    }
     const localPath = targetDia.filePaths[0];
 
     const tranferOne = async (remoteF: any, local: string, started = true, curUuid?: string) => {
@@ -669,6 +682,77 @@ export class SshClient {
     await tranferOne(data.remoteF, localPath, false);
   }
 
+  sftpMkdir = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    const dirPath = data.path;
+    await new Promise<void>((resolve) => {
+      sftp.mkdir(dirPath, (err: any) => {
+        win.webContents.send(chanKey, {
+          op: 'mkdir',
+          path: dirPath,
+          err: err ? err.message : undefined,
+        });
+        resolve();
+      });
+    });
+  };
+
+  sftpRename = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    await new Promise<void>((resolve) => {
+      sftp.rename(data.from, data.to, (err: any) => {
+        win.webContents.send(chanKey, {
+          op: 'rename',
+          from: data.from,
+          to: data.to,
+          err: err ? err.message : undefined,
+        });
+        resolve();
+      });
+    });
+  };
+
+  sftpRmRecursive = async (sftp: any, remotePath: string, isDir: boolean): Promise<string | undefined> => {
+    if (isDir) {
+      const list: any[] = await new Promise((resolve, reject) => {
+        sftp.readdir(remotePath, (err: any, entries: any[]) => {
+          if (err) reject(err);
+          else resolve(entries || []);
+        });
+      });
+      for (const item of list) {
+        const child = remotePath + '/' + item.filename;
+        const childIsDir = String(item.longname || '').startsWith('d');
+        const errMsg = await this.sftpRmRecursive(sftp, child, childIsDir);
+        if (errMsg) return errMsg;
+      }
+      return await new Promise((resolve) => {
+        sftp.rmdir(remotePath, (err: any) => resolve(err ? err.message : undefined));
+      });
+    }
+    return await new Promise((resolve) => {
+      sftp.unlink(remotePath, (err: any) => resolve(err ? err.message : undefined));
+    });
+  };
+
+  sftpRm = async (chanKey: string, sftp: any, data: any) => {
+    const win = this.win;
+    try {
+      const errMsg = await this.sftpRmRecursive(sftp, data.path, !!data.isDir);
+      win.webContents.send(chanKey, {
+        op: 'rm',
+        path: data.path,
+        err: errMsg,
+      });
+    } catch (e: any) {
+      win.webContents.send(chanKey, {
+        op: 'rm',
+        path: data.path,
+        err: e?.message || String(e),
+      });
+    }
+  };
+
   sftp = async (): Promise<void> => {
     const chanKey = `SFTP_CHANNEL_${this.opts.uuid}/${this.opts.windowId}`;
     const win = this.win;
@@ -691,6 +775,12 @@ export class SshClient {
             await this.sftpGet(chanKey, sftp, data);
           } else if (data.op === 'put') {
             await this.sftpPut(chanKey, sftp, data);
+          } else if (data.op === 'mkdir') {
+            await this.sftpMkdir(chanKey, sftp, data);
+          } else if (data.op === 'rm') {
+            await this.sftpRm(chanKey, sftp, data);
+          } else if (data.op === 'rename') {
+            await this.sftpRename(chanKey, sftp, data);
           }
         });
         resolve();

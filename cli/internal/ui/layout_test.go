@@ -9,21 +9,35 @@ import (
 )
 
 func TestOverviewColWidthsFitsContent(t *testing.T) {
-	m := Model{width: 120}
+	m := Model{width: 140}
 	cfg := config.Config{
 		Hosts: []config.Host{
-			{Name: "roompad-US-OLD", Addr: "10.18.50.20:3333", User: "weride"},
+			{Name: "roompad-US-OLD", Addr: "10.18.50.20:3333", User: "weride", Group: "production"},
 		},
 	}
-	m.rows = []metric.Snapshot{{Host: "roompad-US-OLD"}}
-	hostW, addrW := m.overviewColWidths(cfg)
+	m.rows = []metric.Snapshot{{Host: "roompad-US-OLD", Group: "production"}}
+	groupW, hostW, addrW := m.overviewColWidths(cfg)
+	wantGroup := runewidth.StringWidth("production")
 	wantHost := runewidth.StringWidth("roompad-US-OLD")
 	wantAddr := runewidth.StringWidth("weride@10.18.50.20:3333")
+	if groupW < wantGroup {
+		t.Fatalf("groupW=%d want >= %d", groupW, wantGroup)
+	}
 	if hostW < wantHost {
 		t.Fatalf("hostW=%d want >= %d", hostW, wantHost)
 	}
 	if addrW < wantAddr {
 		t.Fatalf("addrW=%d want >= %d", addrW, wantAddr)
+	}
+}
+
+func TestHostGroupFallsBackToConfig(t *testing.T) {
+	cfg := config.Config{
+		Hosts: []config.Host{{Name: "web", Group: "edge"}},
+	}
+	s := metric.Snapshot{Host: "web"}
+	if got := hostGroup(cfg, s); got != "edge" {
+		t.Fatalf("got %q", got)
 	}
 }
 
