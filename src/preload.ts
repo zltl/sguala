@@ -81,8 +81,16 @@ contextBridge.exposeInMainWorld('main', {
       return await ipcRenderer.invoke('conf-export-settings');
     },
 
-    importSettings: async (settings: any) => {
-      return await ipcRenderer.invoke('conf-import-settings', settings);
+    importSettings: async () => {
+      return await ipcRenderer.invoke('conf-import-settings');
+    },
+
+    listSshKeys: async () => {
+      return await ipcRenderer.invoke('conf-list-ssh-keys');
+    },
+
+    readSshKey: async (filePath?: string) => {
+      return await ipcRenderer.invoke('conf-read-ssh-key', filePath);
     },
   },
 

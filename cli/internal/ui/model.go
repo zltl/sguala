@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"sort"
@@ -293,26 +294,44 @@ func buildSSHArgs(cfg config.Config, h config.Host) []string {
 	}
 	if h.ProxyJump != "" {
 		if j, ok := cfg.HostByName(h.ProxyJump); ok {
-			jump := fmt.Sprintf("%s@%s", j.User, stripDefaultPort(j.Addr))
+			jHost, jPort := splitHostPort(j.Addr)
 			if j.Identity != "" {
-				args = append(args, "-o", "ProxyCommand=ssh -i "+sshExpand(j.Identity)+" -W %h:%p "+jump)
+				pc := []string{"ssh", "-i", sshExpand(j.Identity)}
+				if jPort != "22" {
+					pc = append(pc, "-p", jPort)
+				}
+				pc = append(pc, "-W", "%h:%p", j.User+"@"+jHost)
+				args = append(args, "-o", "ProxyCommand="+strings.Join(pc, " "))
 			} else {
+				// -J accepts user@host:port
+				jump := j.User + "@" + jHost
+				if jPort != "22" {
+					jump += ":" + jPort
+				}
 				args = append(args, "-J", jump)
 			}
 		} else {
 			args = append(args, "-J", h.ProxyJump)
 		}
 	}
-	target := h.User + "@" + stripDefaultPort(h.Addr)
-	args = append(args, target)
+	host, port := splitHostPort(h.Addr)
+	// Final destination must use -p; user@host:port is treated as a hostname by OpenSSH.
+	if port != "22" {
+		args = append(args, "-p", port)
+	}
+	args = append(args, h.User+"@"+host)
 	return args
 }
 
-func stripDefaultPort(addr string) string {
-	if strings.HasSuffix(addr, ":22") {
-		return strings.TrimSuffix(addr, ":22")
+func splitHostPort(addr string) (host, port string) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr, "22"
 	}
-	return addr
+	if port == "" {
+		port = "22"
+	}
+	return host, port
 }
 
 func sshExpand(p string) string {

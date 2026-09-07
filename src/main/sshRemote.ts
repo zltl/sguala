@@ -7,6 +7,40 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from "fs";
 import conf from "./conf";
 
+/** If host looks like "ip:port" / "name:port", split it. */
+function splitEmbeddedHostPort(host: string): { host: string; port: number } | null {
+  if (!host || host.startsWith('[')) {
+    // bracketed IPv6: [addr]:port
+    if (host?.startsWith('[')) {
+      const end = host.indexOf(']');
+      if (end > 0 && host[end + 1] === ':') {
+        const port = parseInt(host.slice(end + 2), 10);
+        if (Number.isFinite(port) && port >= 1 && port <= 65535) {
+          return { host: host.slice(1, end), port };
+        }
+      }
+    }
+    return null;
+  }
+  const colon = host.lastIndexOf(':');
+  if (colon <= 0) {
+    return null;
+  }
+  const maybePort = host.slice(colon + 1);
+  if (!/^\d+$/.test(maybePort)) {
+    return null;
+  }
+  const port = parseInt(maybePort, 10);
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
+    return null;
+  }
+  const h = host.slice(0, colon);
+  if (!h || h.includes(':')) {
+    return null;
+  }
+  return { host: h, port };
+}
+
 export class SshClientMapKey {
   windowId: number;
   hostUuid: string;
@@ -119,6 +153,12 @@ export class SshClient {
   }
 
   connect = async (): Promise<void> => {
+    const embedded = splitEmbeddedHostPort(this.opts.host);
+    if (embedded) {
+      this.opts.host = embedded.host;
+      this.opts.port = embedded.port;
+    }
+
     if (this.opts.useHop) {
       const hopS = conf.getServer(this.opts.hopServerUuid);
       if (!hopS) {

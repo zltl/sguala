@@ -1,3 +1,22 @@
 {
-  
+  "Quick Add": "Quick Add",
+  "Add": "Add",
+  "Import succeeded": "Import succeeded",
+  "Import failed": "Import failed",
+  "Group name already exists": "Group name already exists",
+  "Name and host are required": "Name and host are required",
+  "Failed to read key": "Failed to read key",
+  "Loaded key": "Loaded key",
+  "Pasted key": "Pasted key",
+  "None (edit later)": "None (edit later)",
+  "Choose key file…": "Choose key file…",
+  "Paste PEM or choose a key file": "Paste PEM or choose a key file",
+  "SSH private key": "SSH private key",
+  "Connection strings": "Connection strings",
+  "Quick add hint": "One per line: user@host or user@host:port. Lines starting with # are ignored. Multiple lines are added in batch.",
+  "Invalid connection lines": "Invalid connection lines",
+  "Paste at least one connection": "Paste at least one connection",
+  "Open full form": "Open full form",
+  "Added n servers": "Added {{count}} server(s)",
+  "Add server failed": "Add server failed"
 }

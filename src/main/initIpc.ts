@@ -1,8 +1,45 @@
-import { Config, ipcMain, dialog } from "electron";
+import { ipcMain, dialog, app } from "electron";
 import conf, { Server, ServerGroup } from "./conf";
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
+
+const SSH_KEY_SKIP = new Set([
+  'known_hosts',
+  'known_hosts.old',
+  'authorized_keys',
+  'authorized_keys2',
+  'config',
+  'environment',
+]);
+
+function getSshDir(): string {
+  return path.join(app.getPath('home'), '.ssh');
+}
+
+function isUnderSshDir(filePath: string): boolean {
+  const sshDir = path.resolve(getSshDir());
+  const resolved = path.resolve(filePath);
+  return resolved === sshDir || resolved.startsWith(sshDir + path.sep);
+}
+
+async function readPrivateKeyFile(filePath: string): Promise<{ type: string; path?: string; content?: string; message?: string; name?: string }> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    if (!content.includes('PRIVATE KEY') && !content.includes('OPENSSH PRIVATE KEY')) {
+      return { type: 'error', message: 'Selected file does not look like an SSH private key' };
+    }
+    return {
+      type: 'ok',
+      path: filePath,
+      name: path.basename(filePath),
+      content,
+    };
+  } catch (e: any) {
+    return { type: 'error', message: e?.message || 'Failed to read key file' };
+  }
+}
 
 export function initIpc() {
   ipcMain.handle('conf-get', (event) => {
@@ -295,29 +332,100 @@ export function initIpc() {
     const filePath = result.filePaths[0];
     if (!filePath) {
       console.log('cancel import');
-      return;
+      return { type: 'cancel' };
     }
     console.log('import settings from', filePath);
-    const data = await fs.readFile(filePath);
-    const nc = JSON.parse(data.toString());
-    const oc = conf.get();
-    // merge
-    for (const g of nc.groups) {
-      const og = oc.groups.find(gg => gg.name == g.name);
-      if (og) {
-        // merge group, add server from g to og if not exists
-        for (const s of g.servers) {
-          const os = og.servers.find(ss => ss.name == s.name);
-          if (!os) {
-            og.servers.push(s);
+    try {
+      const data = await fs.readFile(filePath);
+      const nc = JSON.parse(data.toString());
+      if (!nc || !Array.isArray(nc.groups)) {
+        return { type: 'error', message: 'Invalid settings file' };
+      }
+      const oc = conf.get();
+      // merge
+      for (const g of nc.groups) {
+        const og = oc.groups.find(gg => gg.name == g.name);
+        if (og) {
+          // merge group, add server from g to og if not exists
+          for (const s of g.servers || []) {
+            const os = og.servers.find(ss => ss.name == s.name);
+            if (!os) {
+              og.servers.push(s);
+            }
           }
+        } else {
+          // add group
+          oc.groups.push(g);
         }
-      } else {
-        // add group
-        oc.groups.push(g);
+      }
+      // save
+      await conf.store(oc);
+      await conf.load();
+      return { type: 'ok' };
+    } catch (e: any) {
+      return { type: 'error', message: e?.message || 'Import failed' };
+    }
+  });
+
+  ipcMain.handle('conf-list-ssh-keys', async () => {
+    const sshDir = getSshDir();
+    try {
+      await fs.access(sshDir, fs.constants.R_OK);
+    } catch {
+      return { type: 'ok', keys: [] };
+    }
+
+    const entries = await fs.readdir(sshDir, { withFileTypes: true });
+    const keys: { name: string; path: string }[] = [];
+    for (const ent of entries) {
+      if (!ent.isFile()) {
+        continue;
+      }
+      const name = ent.name;
+      if (name.endsWith('.pub') || name.startsWith('.')) {
+        continue;
+      }
+      if (SSH_KEY_SKIP.has(name) || name.startsWith('known_hosts')) {
+        continue;
+      }
+        const full = path.join(sshDir, name);
+      try {
+        const fh = await fs.open(full, 'r');
+        try {
+          const buf = Buffer.alloc(96);
+          const { bytesRead } = await fh.read(buf, 0, 96, 0);
+          const sample = buf.slice(0, bytesRead).toString('utf-8');
+          if (sample.includes('PRIVATE KEY') || sample.includes('OPENSSH PRIVATE KEY')) {
+            keys.push({ name, path: full });
+          }
+        } finally {
+          await fh.close();
+        }
+      } catch {
+        // skip unreadable
       }
     }
-    // save
-    await conf.store(oc);
+    keys.sort((a, b) => a.name.localeCompare(b.name));
+    return { type: 'ok', keys };
+  });
+
+  ipcMain.handle('conf-read-ssh-key', async (_event, filePath?: string) => {
+    if (filePath) {
+      if (!isUnderSshDir(filePath)) {
+        return { type: 'error', message: 'Key path must be under ~/.ssh' };
+      }
+      return await readPrivateKeyFile(filePath);
+    }
+
+    const result = await dialog.showOpenDialog({
+      title: 'Select SSH Private Key',
+      defaultPath: getSshDir(),
+      properties: ['openFile'],
+    });
+    const picked = result.filePaths[0];
+    if (!picked) {
+      return { type: 'cancel' };
+    }
+    return await readPrivateKeyFile(picked);
   });
 }

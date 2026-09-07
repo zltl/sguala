@@ -174,6 +174,7 @@ export function getConfig() {
 export async function storeConf(cc: Config) {
   const data = JSON.stringify(cc, null, 2);
   config = cc;
+  updateMaps();
   await fs.writeFile(configFilePath, data, 'utf-8');
 }
 

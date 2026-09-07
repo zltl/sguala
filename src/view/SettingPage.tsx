@@ -3,11 +3,12 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 
 import { useTranslation } from 'react-i18next';
-import { Button, Divider } from '@mui/material';
-import Typography from '@mui/material/Typography';
+import { Alert, Button, Divider } from '@mui/material';
+import { Observer } from './Observer';
 
 export function SettingPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const [msg, setMsg] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const sgualaRepo = "https://github.com/zltl/sguala";
   const gpl3Url = "https://www.gnu.org/licenses/gpl-3.0.en.html";
@@ -18,7 +19,16 @@ export function SettingPage() {
   };
 
   const importSettings = async () => {
-    main.conf.importSettings();
+    const res = await main.conf.importSettings();
+    if (!res || res.type === 'cancel') {
+      return;
+    }
+    if (res.type === 'error') {
+      setMsg({ type: 'error', text: res.message || t('Import failed') });
+      return;
+    }
+    Observer.notify('confChanged', {});
+    setMsg({ type: 'success', text: t('Import succeeded') });
   }
 
   return (
@@ -36,6 +46,12 @@ export function SettingPage() {
         GNU General Public License v3.0
       </Link>.
       <Divider />
+
+      {msg && (
+        <Alert severity={msg.type} sx={{ mt: 1 }} onClose={() => setMsg(null)}>
+          {msg.text}
+        </Alert>
+      )}
 
       <div style={{marginTop: '2px'}}>
       <Button onClick={() => exportSettings()} variant="contained">
