@@ -11,22 +11,16 @@ import (
 )
 
 const (
-	DefaultRefresh   = 10 * time.Second
-	DefaultTimeout   = 5 * time.Second
-	DefaultWorkers   = 8
-	DefaultCPUAlert  = 90.0
-	DefaultMemAlert  = 90.0
-	DefaultDiskAlert = 90.0
+	DefaultRefresh = 10 * time.Second
+	DefaultTimeout = 5 * time.Second
+	DefaultWorkers = 8
 )
 
 type Config struct {
-	Refresh   Duration `yaml:"refresh"`
-	Timeout   Duration `yaml:"timeout"`
-	Workers   int      `yaml:"workers"`
-	CPUAlert  float64  `yaml:"cpu_alert"`
-	MemAlert  float64  `yaml:"mem_alert"`
-	DiskAlert float64  `yaml:"disk_alert"`
-	Hosts     []Host   `yaml:"hosts"`
+	Refresh Duration `yaml:"refresh"`
+	Timeout Duration `yaml:"timeout"`
+	Workers int      `yaml:"workers"`
+	Hosts   []Host   `yaml:"hosts"`
 }
 
 type Host struct {
@@ -67,13 +61,10 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 
 func Default() Config {
 	return Config{
-		Refresh:   Duration(DefaultRefresh),
-		Timeout:   Duration(DefaultTimeout),
-		Workers:   DefaultWorkers,
-		CPUAlert:  DefaultCPUAlert,
-		MemAlert:  DefaultMemAlert,
-		DiskAlert: DefaultDiskAlert,
-		Hosts:     nil,
+		Refresh: Duration(DefaultRefresh),
+		Timeout: Duration(DefaultTimeout),
+		Workers: DefaultWorkers,
+		Hosts:   nil,
 	}
 }
 
@@ -113,15 +104,6 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Workers <= 0 {
 		c.Workers = DefaultWorkers
-	}
-	if c.CPUAlert <= 0 {
-		c.CPUAlert = DefaultCPUAlert
-	}
-	if c.MemAlert <= 0 {
-		c.MemAlert = DefaultMemAlert
-	}
-	if c.DiskAlert <= 0 {
-		c.DiskAlert = DefaultDiskAlert
 	}
 	for i := range c.Hosts {
 		h := &c.Hosts[i]
@@ -195,9 +177,6 @@ func EnsureExample(path string) error {
 refresh: 10s
 timeout: 5s
 workers: 8
-cpu_alert: 90
-mem_alert: 90
-disk_alert: 90
 
 hosts:
   # - name: web-01

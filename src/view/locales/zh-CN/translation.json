@@ -43,5 +43,8 @@
   "Paste at least one connection": "请至少粘贴一条连接串",
   "Open full form": "打开完整表单",
   "Added n servers": "已添加 {{count}} 台服务器",
-  "Add server failed": "添加服务器失败"
+  "Add server failed": "添加服务器失败",
+  "Search hosts": "搜索主机（名称 / IP / 用户 / 分组）",
+  "Clear search": "清除搜索",
+  "Search result count": "匹配 {{count}} 台"
 }

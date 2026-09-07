@@ -73,10 +73,6 @@ contextBridge.exposeInMainWorld('main', {
       return await ipcRenderer.invoke('conf-move-server', groupUuid, serverUuid, targetGroupUuid, targetServerUuid);
     },
 
-    updateInterval: async (interval: number) => {
-      return await ipcRenderer.invoke('update-fetch-interval', interval);
-    },
-
     exportSettings: async () => {
       return await ipcRenderer.invoke('conf-export-settings');
     },

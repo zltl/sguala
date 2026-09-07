@@ -21,6 +21,7 @@ import { useTheme } from '@mui/material/styles';
 interface Props {
   group: { name: string, uuid: string, tabOpening?: boolean, servers: any[] };
   reloadConf: () => void;
+  forceExpand?: boolean;
 }
 
 export function ServerGroupEnd({ reloadConf }: { reloadConf: () => void }) {
@@ -49,6 +50,12 @@ export function ServerGroup(props: Props) {
   const [t, i18n] = useTranslation();
   const group = props.group;
   const [expanded, stSetExpanded] = React.useState(group.tabOpening ? true : false);
+
+  React.useEffect(() => {
+    if (props.forceExpand) {
+      stSetExpanded(true);
+    }
+  }, [props.forceExpand, group.uuid, group.servers?.length]);
 
   const [mouseEnter, setMouseEnter] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
@@ -118,6 +125,8 @@ export function ServerGroup(props: Props) {
   }, [group.uuid]);
 
 
+  const showServers = props.forceExpand || expanded;
+
   const cardList = group.servers.map((server) => {
     server.groupUuid = group.uuid;
     server.groupName = groupName;
@@ -177,7 +186,7 @@ export function ServerGroup(props: Props) {
         </div>
 
         <Box>
-          {expanded &&
+          {showServers &&
             <Grid sx={{ flexGrow: 1 }} container spacing={{ xs: 2, md: 3 }} columns={{ xs: 4, sm: 8, md: 12 }}>
               {cardList}
             </Grid>

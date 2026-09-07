@@ -27,34 +27,6 @@ export class ServerGroup {
   servers: Server[] = []
 }
 
-export class SmtpConf {
-  fromHost: string
-  fromPort: string
-  fromSecure: boolean
-  fromEmail: string
-  fromPassword: string
-}
-
-export class AlertConf {
-  uuid = uuidv4()
-  isOpen = false
-  toEmail = ''
-  cpuCheck = true
-  memCheck = true
-  diskCheck = true
-  upCheck = true
-  cpuAlertValue = 90
-  memAlertValue = 90
-  diskAlertValue = 90
-  cpuAlertForValue = 1
-  memAlertForValue = 5
-  diskAlertForValue = 5
-  upAlertForValue = 3
-  mailInterval = 120
-  fetchInterval = 10
-  updateTime = new Date().toISOString()
-}
-
 export class Config {
   version = version;
   groups: ServerGroup[] = [{
@@ -62,8 +34,6 @@ export class Config {
     name: "Default",
     servers: [],
   }];
-  smtp?: SmtpConf;
-  alert?: AlertConf;
 }
 
 export async function confUpgrade() {
@@ -100,9 +70,6 @@ export async function confUpgrade() {
     server.updateTime = s.updateTime;
     g.servers.push(server);
   }
-
-  newConf.smtp = oldConf.smtpc;
-  newConf.alert = oldConf.alerts;
 
   await storeConf(newConf);
   await fs.unlink(legacyPath);
@@ -159,6 +126,9 @@ export async function loadConfig(): Promise<Config> {
   try {
     const data = await fs.readFile(configFilePath, 'utf-8');
     config = JSON.parse(data) as Config;
+    // Drop legacy alert/smtp fields if present
+    delete (config as any).smtp;
+    delete (config as any).alert;
     updateMaps();
     return config;
   } catch (e) {
@@ -172,6 +142,8 @@ export function getConfig() {
 }
 
 export async function storeConf(cc: Config) {
+  delete (cc as any).smtp;
+  delete (cc as any).alert;
   const data = JSON.stringify(cc, null, 2);
   config = cc;
   updateMaps();
@@ -201,12 +173,6 @@ export default {
 
   getServer: (uuid: string): Server => {
     return serverUuidMap.get(uuid);
-  },
-
-  updateFetchInterval: async (interval: number) => {
-    config.alert.fetchInterval = interval;
-    await storeConf(config);
-    await loadConfig();
   },
 
 };

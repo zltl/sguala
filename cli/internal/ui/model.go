@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zltl/sguala/cli/internal/config"
@@ -29,7 +30,7 @@ type keyMap struct {
 	Enter   key.Binding
 	Back    key.Binding
 	Refresh key.Binding
-	Filter  key.Binding
+	Search  key.Binding
 	Sort    key.Binding
 	SSH     key.Binding
 	Edit    key.Binding
@@ -38,13 +39,13 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.SSH, k.Filter, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Search, k.SSH, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter, k.Back},
-		{k.Refresh, k.Filter, k.Sort, k.SSH},
+		{k.Refresh, k.Search, k.Sort, k.SSH},
 		{k.Edit, k.Help, k.Quit},
 	}
 }
@@ -55,7 +56,7 @@ var keys = keyMap{
 	Enter:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "detail")),
 	Back:    key.NewBinding(key.WithKeys("esc", "h"), key.WithHelp("esc", "back")),
 	Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
-	Filter:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "alerts only")),
+	Search:  key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 	Sort:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
 	SSH:     key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open ssh")),
 	Edit:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit config")),
@@ -100,15 +101,17 @@ type Model struct {
 	configPath string
 	help       help.Model
 	keys       keyMap
+	search     textinput.Model
 
 	width  int
 	height int
 
-	cursor   int
-	mode     viewMode
-	showHelp bool
-	alertsOnly bool
-	sort     sortMode
+	cursor    int
+	mode      viewMode
+	showHelp  bool
+	sort      sortMode
+	searching bool
+	query     string
 
 	rows []metric.Snapshot // filtered+sorted view
 	err  string
@@ -117,11 +120,17 @@ type Model struct {
 func New(eng *engine.Engine, configPath string) Model {
 	h := help.New()
 	h.ShowAll = false
+	ti := textinput.New()
+	ti.Placeholder = "search host / group / addr…"
+	ti.CharLimit = 64
+	ti.Width = 40
+	ti.Prompt = "/ "
 	return Model{
 		engine:     eng,
 		configPath: configPath,
 		help:       h,
 		keys:       keys,
+		search:     ti,
 	}
 }
 
@@ -163,6 +172,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.searching {
+			switch msg.String() {
+			case "esc", "ctrl+c":
+				m.searching = false
+				m.search.Blur()
+				m.search.SetValue("")
+				m.query = ""
+				m.cursor = 0
+				m.rebuildRows()
+				return m, nil
+			case "enter":
+				m.searching = false
+				m.search.Blur()
+				m.query = strings.TrimSpace(m.search.Value())
+				m.cursor = 0
+				m.rebuildRows()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.search, cmd = m.search.Update(msg)
+			m.query = m.search.Value()
+			m.cursor = 0
+			m.rebuildRows()
+			return m, cmd
+		}
+
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
@@ -172,11 +207,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.Refresh):
 			return m, m.doRefresh()
-		case key.Matches(msg, m.keys.Filter):
-			m.alertsOnly = !m.alertsOnly
-			m.cursor = 0
-			m.rebuildRows()
-			return m, nil
+		case key.Matches(msg, m.keys.Search):
+			if m.mode == viewDetail {
+				m.mode = viewOverview
+			}
+			m.searching = true
+			m.search.SetValue(m.query)
+			m.search.Focus()
+			return m, textinput.Blink
 		case key.Matches(msg, m.keys.Sort):
 			m.sort = (m.sort + 1) % 5
 			m.rebuildRows()
@@ -184,6 +222,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Edit):
 			return m, m.openEditor()
 		case key.Matches(msg, m.keys.Back):
+			if m.query != "" {
+				m.query = ""
+				m.search.SetValue("")
+				m.cursor = 0
+				m.rebuildRows()
+				return m, nil
+			}
 			if m.mode == viewDetail {
 				m.mode = viewOverview
 			}
@@ -213,12 +258,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func hostMatches(cfg config.Config, s metric.Snapshot, q string) bool {
+	q = strings.ToLower(strings.TrimSpace(q))
+	if q == "" {
+		return true
+	}
+	hay := strings.ToLower(s.Host + " " + s.Group)
+	if h, ok := cfg.HostByName(s.Host); ok {
+		hay += " " + strings.ToLower(h.Addr+" "+h.User+" "+h.Name)
+		for _, tag := range h.Tags {
+			hay += " " + strings.ToLower(tag)
+		}
+	}
+	return strings.Contains(hay, q)
+}
+
 func (m *Model) rebuildRows() {
 	cfg := m.engine.Config()
 	all := m.engine.Snapshots()
 	rows := make([]metric.Snapshot, 0, len(all))
 	for _, s := range all {
-		if m.alertsOnly && !isAlert(cfg, s) {
+		if !hostMatches(cfg, s, m.query) {
 			continue
 		}
 		rows = append(rows, s)
@@ -231,22 +291,6 @@ func (m *Model) rebuildRows() {
 	if len(m.rows) == 0 {
 		m.cursor = 0
 	}
-}
-
-func isAlert(cfg config.Config, s metric.Snapshot) bool {
-	if !s.Online {
-		return true
-	}
-	if s.CPU >= cfg.CPUAlert {
-		return true
-	}
-	if s.MemUsedPercent() >= cfg.MemAlert {
-		return true
-	}
-	if d, ok := s.WorstDisk(); ok && d.UsedPercent() >= cfg.DiskAlert {
-		return true
-	}
-	return false
 }
 
 func sortSnapshots(rows []metric.Snapshot, mode sortMode) {
@@ -387,32 +431,39 @@ func (m Model) View() string {
 			online++
 		}
 	}
-	filter := "all"
-	if m.alertsOnly {
-		filter = "alerts"
-	}
-	fmt.Fprintf(&b, "%s  %d/%d online  refresh %s  sort:%s  filter:%s\n",
+	fmt.Fprintf(&b, "%s  %d/%d online  refresh %s  sort:%s",
 		titleStyle.Render("sguala"),
 		online, len(cfg.Hosts),
 		cfg.Refresh.Dur(),
 		m.sort.String(),
-		filter,
 	)
+	if m.query != "" || m.searching {
+		fmt.Fprintf(&b, "  %s", mutedStyle.Render(fmt.Sprintf("filter:%q %d hits", strings.TrimSpace(m.query), len(m.rows))))
+	}
+	b.WriteByte('\n')
+	if m.searching {
+		b.WriteString(m.search.View())
+		b.WriteByte('\n')
+	}
 	b.WriteString(mutedStyle.Render(strings.Repeat("─", max(10, m.width-1))))
 	b.WriteByte('\n')
 
 	if m.mode == viewDetail && len(m.rows) > 0 {
-		b.WriteString(m.viewDetail(cfg, m.rows[m.cursor]))
+		b.WriteString(m.viewDetail(m.rows[m.cursor]))
 	} else {
-		b.WriteString(m.viewOverview(cfg))
+		b.WriteString(m.viewOverview())
 	}
 
 	b.WriteByte('\n')
-	b.WriteString(helpStyle.Render(m.help.View(m.keys)))
+	if m.searching {
+		b.WriteString(helpStyle.Render("enter confirm · esc clear"))
+	} else {
+		b.WriteString(helpStyle.Render(m.help.View(m.keys)))
+	}
 	return b.String()
 }
 
-func (m Model) viewOverview(cfg config.Config) string {
+func (m Model) viewOverview() string {
 	var b strings.Builder
 	header := fmt.Sprintf("%-10s %-14s %-2s %6s %14s %14s %6s %6s",
 		"GROUP", "HOST", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
@@ -420,19 +471,23 @@ func (m Model) viewOverview(cfg config.Config) string {
 	b.WriteByte('\n')
 
 	if len(m.rows) == 0 {
-		b.WriteString(mutedStyle.Render("  (no hosts — edit config with e)"))
+		if strings.TrimSpace(m.query) != "" {
+			b.WriteString(mutedStyle.Render("  (no matches)"))
+		} else {
+			b.WriteString(mutedStyle.Render("  (no hosts — edit config with e)"))
+		}
 		b.WriteByte('\n')
 		return b.String()
 	}
 
 	for i, s := range m.rows {
-		line := formatRow(cfg, s)
+		line := formatRow(s)
 		if i == m.cursor {
 			line = selStyle.Render(line)
-		} else if isAlert(cfg, s) {
-			line = warnStyle.Render(line)
 		} else if !s.Online {
 			line = errStyle.Render(line)
+		} else if isHighUsage(s) {
+			line = warnStyle.Render(line)
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')
@@ -440,7 +495,21 @@ func (m Model) viewOverview(cfg config.Config) string {
 	return b.String()
 }
 
-func formatRow(cfg config.Config, s metric.Snapshot) string {
+func isHighUsage(s metric.Snapshot) bool {
+	const warnAt = 90.0
+	if s.CPU >= warnAt {
+		return true
+	}
+	if s.MemUsedPercent() >= warnAt {
+		return true
+	}
+	if d, ok := s.WorstDisk(); ok && d.UsedPercent() >= warnAt {
+		return true
+	}
+	return false
+}
+
+func formatRow(s metric.Snapshot) string {
 	st := "○"
 	if s.Online {
 		st = okStyle.Render("●")
@@ -465,16 +534,16 @@ func formatRow(cfg config.Config, s metric.Snapshot) string {
 		trunc(s.Group, 10), trunc(s.Host, 14), st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
 }
 
-func (m Model) viewDetail(cfg config.Config, s metric.Snapshot) string {
+func (m Model) viewDetail(s metric.Snapshot) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s / %s\n", s.Group, titleStyle.Render(s.Host))
 	if !s.Online {
 		fmt.Fprintf(&b, "%s %s\n", errStyle.Render("offline"), s.Error)
 		return b.String()
 	}
-	fmt.Fprintf(&b, "CPU     %s\n", bar(s.CPU, cfg.CPUAlert))
+	fmt.Fprintf(&b, "CPU     %s\n", bar(s.CPU))
 	fmt.Fprintf(&b, "Memory  %s  %s / %s\n",
-		bar(s.MemUsedPercent(), cfg.MemAlert),
+		bar(s.MemUsedPercent()),
 		metric.HumanBytes(s.MemUsed()), metric.HumanBytes(s.MemTotal))
 	fmt.Fprintf(&b, "Load    %.2f %.2f %.2f\n", s.Load1, s.Load5, s.Load15)
 	fmt.Fprintf(&b, "Uptime  %s\n", formatUptime(s.UptimeSec))
@@ -484,13 +553,14 @@ func (m Model) viewDetail(cfg config.Config, s metric.Snapshot) string {
 	for _, d := range s.Disks {
 		fmt.Fprintf(&b, "  %-20s %s  %s / %s\n",
 			trunc(d.Name, 20),
-			bar(d.UsedPercent(), cfg.DiskAlert),
+			bar(d.UsedPercent()),
 			metric.HumanBytes(d.Used()), metric.HumanBytes(d.Total))
 	}
 	return b.String()
 }
 
-func bar(pct, alert float64) string {
+func bar(pct float64) string {
+	const warnAt = 90.0
 	width := 20
 	filled := int(pct / 100 * float64(width))
 	if filled > width {
@@ -502,9 +572,9 @@ func bar(pct, alert float64) string {
 	body := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
 	label := fmt.Sprintf("%5.1f%% %s", pct, body)
 	switch {
-	case pct >= alert:
+	case pct >= warnAt:
 		return errStyle.Render(label)
-	case pct >= alert-10:
+	case pct >= warnAt-10:
 		return warnStyle.Render(label)
 	default:
 		return okStyle.Render(label)

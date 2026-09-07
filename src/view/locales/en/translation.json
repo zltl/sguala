@@ -18,5 +18,8 @@
   "Paste at least one connection": "Paste at least one connection",
   "Open full form": "Open full form",
   "Added n servers": "Added {{count}} server(s)",
-  "Add server failed": "Add server failed"
+  "Add server failed": "Add server failed",
+  "Search hosts": "Search hosts (name / IP / user / group)",
+  "Clear search": "Clear search",
+  "Search result count": "{{count}} matched"
 }

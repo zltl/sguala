@@ -7,6 +7,7 @@ sguala-cli is an **agentless** Linux host monitor with a terminal UI. It SSHes i
 - Go 1.22+
 - OpenSSH client (`ssh`) on PATH if you use key `o` to open a session
 - SSH key or `ssh-agent` (password auth is supported but discouraged)
+- Auth for metrics collection matches OpenSSH: configured `identity`, then `~/.ssh/id_*`, then `SSH_AUTH_SOCK`
 
 ## Quick start
 
@@ -32,9 +33,6 @@ export SGUALA_CONFIG=/path/to/config.yaml
 refresh: 10s
 timeout: 5s
 workers: 8
-cpu_alert: 90
-mem_alert: 90
-disk_alert: 90
 
 hosts:
   - name: web-01
@@ -64,7 +62,7 @@ File mode should be `0600`. Prefer `identity` / `SSH_AUTH_SOCK` over `password`.
 | `Enter` | Host detail |
 | `Esc` | Back |
 | `r` | Refresh now |
-| `f` | Toggle alerts-only |
+| `/` | Search hosts (name / group / addr / user); Esc clears |
 | `s` | Cycle sort (config/cpu/mem/disk/lat) |
 | `o` | Open system `ssh` to selected host |
 | `e` | Edit config in `$EDITOR` |

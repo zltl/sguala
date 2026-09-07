@@ -296,11 +296,6 @@ export function initIpc() {
     await conf.load();
   });
 
-  ipcMain.handle('update-fetch-interval', async (event, interval: number) => {
-    console.log('update-fetch-interval', interval);
-    await conf.updateFetchInterval(interval);
-  });
-
   ipcMain.handle('conf-export-settings', async (event) => {
     // dialog show save file
     const result = await dialog.showSaveDialog({

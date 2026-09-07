@@ -2,6 +2,7 @@ package sshx
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -38,37 +39,115 @@ func ExpandHome(p string) string {
 	return p
 }
 
-func authMethods(identity, password string) ([]ssh.AuthMethod, error) {
-	var methods []ssh.AuthMethod
+// defaultIdentityNames mirrors OpenSSH's common private key basenames.
+var defaultIdentityNames = []string{
+	"id_ed25519",
+	"id_rsa",
+	"id_ecdsa",
+	"id_ecdsa_sk",
+	"id_ed25519_sk",
+	"id_dsa",
+}
 
-	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
-		if conn, err := net.Dial("unix", sock); err == nil {
-			ag := agent.NewClient(conn)
-			methods = append(methods, ssh.PublicKeysCallback(ag.Signers))
+func loadSigner(path string) (ssh.Signer, error) {
+	key, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		// Passphrase-protected keys need the agent; skip file quietly.
+		return nil, err
+	}
+	return signer, nil
+}
+
+func signerFingerprint(s ssh.Signer) string {
+	return string(ssh.MarshalAuthorizedKey(s.PublicKey()))
+}
+
+// authMethods builds a single publickey AuthMethod (x/crypto/ssh only uses the
+// first AuthMethod of each RFC 4252 type). Order matches OpenSSH preference:
+// configured identity → ~/.ssh/id_* → ssh-agent.
+// The returned closer must stay open until after Dial returns (agent signers
+// need the socket during the handshake).
+func authMethods(identity, password string) (methods []ssh.AuthMethod, closer io.Closer, err error) {
+	var signers []ssh.Signer
+	seen := make(map[string]struct{})
+	add := func(s ssh.Signer) {
+		if s == nil {
+			return
+		}
+		fp := signerFingerprint(s)
+		if _, ok := seen[fp]; ok {
+			return
+		}
+		seen[fp] = struct{}{}
+		signers = append(signers, s)
+	}
+
+	var identityErr error
+	if identity != "" {
+		path := ExpandHome(identity)
+		s, e := loadSigner(path)
+		if e != nil {
+			identityErr = fmt.Errorf("read identity %s: %w", path, e)
+		} else {
+			add(s)
 		}
 	}
 
-	if identity != "" {
-		path := ExpandHome(identity)
-		key, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("read identity %s: %w", path, err)
+	if home, e := os.UserHomeDir(); e == nil {
+		sshDir := filepath.Join(home, ".ssh")
+		for _, name := range defaultIdentityNames {
+			path := filepath.Join(sshDir, name)
+			if identity != "" && ExpandHome(identity) == path {
+				continue
+			}
+			if s, e := loadSigner(path); e == nil {
+				add(s)
+			}
 		}
-		signer, err := ssh.ParsePrivateKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("parse identity %s: %w", path, err)
+	}
+
+	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
+		if conn, e := net.Dial("unix", sock); e == nil {
+			closer = conn
+			ag := agent.NewClient(conn)
+			if as, e := ag.Signers(); e == nil {
+				for _, s := range as {
+					add(s)
+				}
+			}
 		}
-		methods = append(methods, ssh.PublicKeys(signer))
+	}
+
+	if len(signers) > 0 {
+		// One PublicKeys method so every signer is actually attempted.
+		methods = append(methods, ssh.PublicKeys(signers...))
 	}
 
 	if password != "" {
 		methods = append(methods, ssh.Password(password))
+		pw := password
+		methods = append(methods, ssh.KeyboardInteractive(
+			func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = pw
+				}
+				return answers, nil
+			},
+		))
 	}
 
 	if len(methods) == 0 {
-		return nil, fmt.Errorf("no auth methods: set identity, SSH_AUTH_SOCK, or password")
+		if identityErr != nil {
+			return nil, closer, identityErr
+		}
+		return nil, closer, fmt.Errorf("no auth methods: set identity, place a key in ~/.ssh, start ssh-agent, or set password")
 	}
-	return methods, nil
+	return methods, closer, nil
 }
 
 func hostKeyCallback() ssh.HostKeyCallback {
@@ -90,7 +169,10 @@ func Dial(opts DialOptions) (*ssh.Client, error) {
 	if opts.Timeout <= 0 {
 		opts.Timeout = 5 * time.Second
 	}
-	auths, err := authMethods(opts.Identity, opts.Password)
+	auths, closer, err := authMethods(opts.Identity, opts.Password)
+	if closer != nil {
+		defer closer.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
