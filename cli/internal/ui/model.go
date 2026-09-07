@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/engine"
 	"github.com/zltl/sguala/cli/internal/metric"
@@ -404,8 +405,11 @@ func (m Model) View() string {
 
 func (m Model) viewOverview() string {
 	var b strings.Builder
-	header := fmt.Sprintf("%-14s %-18s %-2s %6s %14s %14s %6s %6s",
-		"HOST", "ADDR", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
+	cfg := m.engine.Config()
+	hostW, addrW := m.overviewColWidths(cfg)
+
+	header := padRight("HOST", hostW) + " " + padRight("ADDR", addrW) +
+		fmt.Sprintf(" %-2s %6s %14s %14s %6s %6s", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteByte('\n')
 
@@ -420,7 +424,7 @@ func (m Model) viewOverview() string {
 	}
 
 	for i, s := range m.rows {
-		line := formatRow(m.engine.Config(), s)
+		line := formatRow(cfg, s, hostW, addrW)
 		if i == m.cursor {
 			line = selStyle.Render(line)
 		} else if !s.Online {
@@ -432,6 +436,74 @@ func (m Model) viewOverview() string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// overviewColWidths sizes HOST/ADDR from terminal width and visible content.
+// Metric columns stay fixed; leftover space goes to host/addr (prefer no truncation).
+func (m Model) overviewColWidths(cfg config.Config) (hostW, addrW int) {
+	// " ST CPU...LAT" fixed tail: space+2+space+6+space+14+space+14+space+6+space+6
+	const fixedTail = 1 + 2 + 1 + 6 + 1 + 14 + 1 + 14 + 1 + 6 + 1 + 6
+	termW := m.width
+	if termW <= 0 {
+		termW = 80
+	}
+	avail := termW - 1 - fixedTail // gap between HOST and ADDR is counted below
+	if avail < 24 {
+		avail = 24
+	}
+
+	maxHost := runewidth.StringWidth("HOST")
+	maxAddr := runewidth.StringWidth("ADDR")
+	for _, s := range m.rows {
+		if w := runewidth.StringWidth(s.Host); w > maxHost {
+			maxHost = w
+		}
+		addr := hostAddr(cfg, s)
+		if w := runewidth.StringWidth(addr); w > maxAddr {
+			maxAddr = w
+		}
+	}
+
+	// One space between HOST and ADDR.
+	gap := 1
+	if maxHost+gap+maxAddr <= avail {
+		return maxHost, maxAddr
+	}
+
+	// Shrink proportionally, keep readable floors.
+	const minHost, minAddr = 10, 14
+	hostW = maxHost
+	addrW = maxAddr
+	budget := avail - gap
+	if hostW+addrW > budget {
+		// Prefer giving ADDR more room (user@host:port is usually longer).
+		hostW = budget * 2 / 5
+		addrW = budget - hostW
+	}
+	if hostW < minHost {
+		hostW = minHost
+		addrW = budget - hostW
+	}
+	if addrW < minAddr {
+		addrW = minAddr
+		hostW = budget - addrW
+	}
+	if hostW < 6 {
+		hostW = 6
+		addrW = budget - hostW
+	}
+	if addrW < 8 {
+		addrW = 8
+		hostW = max(6, budget-addrW)
+	}
+	return hostW, addrW
+}
+
+func hostAddr(cfg config.Config, s metric.Snapshot) string {
+	if h, ok := cfg.HostByName(s.Host); ok {
+		return h.User + "@" + h.Addr
+	}
+	return "—"
 }
 
 func isHighUsage(s metric.Snapshot) bool {
@@ -448,17 +520,14 @@ func isHighUsage(s metric.Snapshot) bool {
 	return false
 }
 
-func formatRow(cfg config.Config, s metric.Snapshot) string {
+func formatRow(cfg config.Config, s metric.Snapshot, hostW, addrW int) string {
 	st := "○"
 	if s.Online {
 		st = okStyle.Render("●")
 	} else {
 		st = errStyle.Render("○")
 	}
-	addr := "—"
-	if h, ok := cfg.HostByName(s.Host); ok {
-		addr = h.User + "@" + h.Addr
-	}
+	addr := hostAddr(cfg, s)
 	cpu := "—"
 	mem := "—"
 	disk := "—"
@@ -473,8 +542,8 @@ func formatRow(cfg config.Config, s metric.Snapshot) string {
 		load = fmt.Sprintf("%5.2f", s.Load1)
 		lat = fmt.Sprintf("%4dms", s.Latency.Milliseconds())
 	}
-	return fmt.Sprintf("%-14s %-18s %-2s %6s %14s %14s %6s %6s",
-		trunc(s.Host, 14), trunc(addr, 18), st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
+	return padRight(s.Host, hostW) + " " + padRight(addr, addrW) +
+		fmt.Sprintf(" %-2s %6s %14s %14s %6s %6s", st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
 }
 
 func (m Model) viewDetail(s metric.Snapshot) string {
@@ -544,13 +613,22 @@ func formatUptime(sec float64) string {
 }
 
 func trunc(s string, n int) string {
-	if len(s) <= n {
+	if n <= 0 {
+		return ""
+	}
+	if runewidth.StringWidth(s) <= n {
 		return s
 	}
-	if n <= 1 {
-		return s[:n]
+	return runewidth.Truncate(s, n, "…")
+}
+
+func padRight(s string, n int) string {
+	s = trunc(s, n)
+	pad := n - runewidth.StringWidth(s)
+	if pad <= 0 {
+		return s
 	}
-	return s[:n-1] + "…"
+	return s + strings.Repeat(" ", pad)
 }
 
 func shortName(s string) string {

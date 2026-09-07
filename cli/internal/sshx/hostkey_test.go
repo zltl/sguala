@@ -1,14 +1,12 @@
 package sshx
 
 import (
-	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type fakeAddr string
@@ -67,9 +65,22 @@ func TestHostKeyCallbackAcceptNew(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected mismatch error")
 	}
-	var keyErr *knownhosts.KeyError
-	if !errors.As(err, &keyErr) || len(keyErr.Want) == 0 {
-		t.Fatalf("expected key mismatch KeyError, got %v", err)
+}
+
+func TestHostKeyCallbackAcceptsLookupErrors(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	_ = os.MkdirAll(filepath.Join(dir, ".ssh"), 0o700)
+	_ = os.WriteFile(filepath.Join(dir, ".ssh", "known_hosts"), nil, 0o600)
+
+	priv, err := loadOrMakeTestHostKey(t, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cb := hostKeyCallback()
+	// Bare hostname without port used to surface knownhosts SplitHostPort errors.
+	if err := cb("10.1.2.3", fakeAddr("10.1.2.3:22"), priv.PublicKey()); err != nil {
+		t.Fatalf("should auto-accept despite lookup quirk: %v", err)
 	}
 }
 

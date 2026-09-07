@@ -164,35 +164,44 @@ func hostKeyCallback() ssh.HostKeyCallback {
 
 	inner, err := knownhosts.New(path)
 	if err != nil {
+		// No usable known_hosts — monitoring list still needs to connect.
 		return ssh.InsecureIgnoreHostKey() //nolint:gosec
 	}
 
-	// OpenSSH-like StrictHostKeyChecking=accept-new:
-	// unknown hosts are accepted and appended; changed keys still fail.
+	// Monitoring list: auto-accept hosts (OpenSSH accept-new + tolerate
+	// knownhosts address-format quirks). Key *mismatch* still fails.
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		err := inner(hostname, remote, key)
 		if err == nil {
 			return nil
 		}
 		var keyErr *knownhosts.KeyError
-		if !errors.As(err, &keyErr) {
-			return err
+		if errors.As(err, &keyErr) && len(keyErr.Want) > 0 {
+			return fmt.Errorf("host key mismatch for %s: %w", hostname, err)
 		}
-		if len(keyErr.Want) > 0 {
-			// Known host, wrong key — refuse (possible MITM).
-			return err
-		}
+		// Unknown host, or knownhosts lookup error (e.g. addr without port):
+		// accept and best-effort remember the key so later checks succeed.
 		_ = appendKnownHost(path, hostname, remote, key)
 		return nil
 	}
 }
 
 func appendKnownHost(path, hostname string, remote net.Addr, key ssh.PublicKey) error {
-	addrs := []string{hostname}
+	if key == nil {
+		return nil
+	}
+	addrs := make([]string, 0, 2)
+	if hostname != "" {
+		// knownhosts.Line/Normalize want host or host:port / [host]:port
+		addrs = append(addrs, hostname)
+	}
 	if remote != nil {
-		if normalized := knownhosts.Normalize(remote.String()); normalized != "" && normalized != hostname {
-			addrs = append(addrs, normalized)
+		if rs := remote.String(); rs != "" && rs != hostname {
+			addrs = append(addrs, rs)
 		}
+	}
+	if len(addrs) == 0 {
+		return nil
 	}
 	line := knownhosts.Line(addrs, key)
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
