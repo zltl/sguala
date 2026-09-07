@@ -55,6 +55,16 @@ Full reference: **[cli/README.md](./cli/README.md)**.
 sguala passwd <Host-alias>
 ```
 
+### Backup / migrate (bundle)
+
+```bash
+sguala export ./backup.sguala.zip
+sguala export ./full.sguala.zip --keys --secrets   # sensitive
+sguala import ./backup.sguala.zip
+```
+
+Desktop: **Settings → Export / Import Bundle** (same format). Keys/passwords off by default.
+
 ## CI / release
 
 - Push / PR → GitHub Actions runs CLI tests and build

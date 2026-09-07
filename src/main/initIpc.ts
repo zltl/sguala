@@ -1,10 +1,11 @@
-import { ipcMain, dialog, app } from "electron";
+import { ipcMain, dialog, app, BrowserWindow } from "electron";
 import conf, { Server, ServerGroup } from "./conf";
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
 import { migratePasswordOutOfServer, deleteHostPassword } from "./hostSecrets";
+import { exportBundleDialog, importBundleDialog } from "./sgualaBundle";
 import { loadSshConfigHosts } from "./sshConfig";
 
 const SSH_KEY_SKIP = new Set([
@@ -327,6 +328,16 @@ export function initIpc() {
 
     await conf.store(c);
     await conf.load();
+  });
+
+  ipcMain.handle('conf-export-bundle', async (event, opts?: { includeKeys?: boolean; includeSecrets?: boolean }) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return exportBundleDialog(win, opts || {});
+  });
+
+  ipcMain.handle('conf-import-bundle', async (event, opts?: { overwrite?: boolean; includeKeys?: boolean; includeSecrets?: boolean }) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return importBundleDialog(win, opts || {});
   });
 
   ipcMain.handle('conf-export-settings', async (event) => {

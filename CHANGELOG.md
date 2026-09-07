@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.1] - unreleased
+
+### Import / export bundle
+- CLI: `sguala export|import` (dir or `.zip`), `--keys` / `--secrets`; `export-ssh` / `import-ssh`
+- Desktop Settings: Export / Import Bundle (compatible format); legacy JSON kept
+
 ## [2.1.0] - 2026-09-07
 
 ### CLI (`cli/`)

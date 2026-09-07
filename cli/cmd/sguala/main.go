@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/zltl/sguala/cli/internal/bundle"
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/engine"
 	"github.com/zltl/sguala/cli/internal/secret"
@@ -160,7 +161,114 @@ func main() {
 	}
 	passwdCmd.Flags().Bool("delete", false, "remove stored password")
 
-	root.AddCommand(checkCmd, versionCmd, initCmd, getCmd, putCmd, sftpCmd, rsyncCmd, passwdCmd)
+	exportCmd := &cobra.Command{
+		Use:   "export <path>",
+		Short: "Export hosts to a sguala-bundle directory or .zip",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
+			}
+			keys, _ := cmd.Flags().GetBool("keys")
+			secrets, _ := cmd.Flags().GetBool("secrets")
+			opt := bundle.ExportOptions{
+				IncludeKeys:    keys,
+				IncludeSecrets: secrets,
+				AppVersion:     version,
+			}
+			if err := bundle.ExportFromCLI(args[0], cfg, opt); err != nil {
+				return err
+			}
+			fmt.Println("exported", args[0])
+			if !keys && !secrets {
+				fmt.Println("tip: add --keys / --secrets for private keys and passwords")
+			}
+			return nil
+		},
+	}
+	exportCmd.Flags().Bool("keys", false, "include private keys from IdentityFile")
+	exportCmd.Flags().Bool("secrets", false, "include stored passwords")
+
+	importCmd := &cobra.Command{
+		Use:   "import <path>",
+		Short: "Import a sguala-bundle into ~/.ssh/config (and optional keys/passwords)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
+			}
+			overwrite, _ := cmd.Flags().GetBool("overwrite")
+			keys, _ := cmd.Flags().GetBool("keys")
+			secrets, _ := cmd.Flags().GetBool("secrets")
+			// default: apply keys/secrets when present in bundle
+			if !cmd.Flags().Changed("keys") {
+				keys = true
+			}
+			if !cmd.Flags().Changed("secrets") {
+				secrets = true
+			}
+			res, err := bundle.ImportToCLI(args[0], cfg, bundle.ImportOptions{
+				Overwrite:      overwrite,
+				IncludeKeys:    keys,
+				IncludeSecrets: secrets,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("added=%d updated=%d skipped=%d keys=%d secrets=%d\n",
+				res.Added, res.Updated, res.Skipped, res.Keys, res.Secrets)
+			for _, w := range res.Warnings {
+				fmt.Println("warning:", w)
+			}
+			return nil
+		},
+	}
+	importCmd.Flags().Bool("overwrite", false, "append Host blocks even if alias exists")
+	importCmd.Flags().Bool("keys", true, "install keys from bundle when present")
+	importCmd.Flags().Bool("secrets", true, "import passwords when present")
+
+	exportSSHCmd := &cobra.Command{
+		Use:   "export-ssh <path>",
+		Short: "Write an OpenSSH config fragment from current hosts",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
+			}
+			if err := bundle.ExportSSHFragment(args[0], cfg); err != nil {
+				return err
+			}
+			fmt.Println("wrote", args[0])
+			return nil
+		},
+	}
+
+	importSSHCmd := &cobra.Command{
+		Use:   "import-ssh <path>",
+		Short: "Append an OpenSSH fragment into ~/.ssh/config",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
+			}
+			sshPath, err := cfg.ResolvedSSHConfig()
+			if err != nil {
+				return err
+			}
+			if err := bundle.ImportSSHFragment(args[0], sshPath); err != nil {
+				return err
+			}
+			fmt.Println("appended into", sshPath)
+			return nil
+		},
+	}
+
+	root.AddCommand(checkCmd, versionCmd, initCmd, getCmd, putCmd, sftpCmd, rsyncCmd, passwdCmd,
+		exportCmd, importCmd, exportSSHCmd, importSSHCmd)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}

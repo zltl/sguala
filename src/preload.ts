@@ -81,6 +81,14 @@ contextBridge.exposeInMainWorld('main', {
       return await ipcRenderer.invoke('conf-import-settings');
     },
 
+    exportBundle: async (opts?: { includeKeys?: boolean; includeSecrets?: boolean }) => {
+      return await ipcRenderer.invoke('conf-export-bundle', opts || {});
+    },
+
+    importBundle: async (opts?: { overwrite?: boolean; includeKeys?: boolean; includeSecrets?: boolean }) => {
+      return await ipcRenderer.invoke('conf-import-bundle', opts || {});
+    },
+
     listSshConfigHosts: async () => {
       return await ipcRenderer.invoke('conf-list-ssh-config-hosts');
     },

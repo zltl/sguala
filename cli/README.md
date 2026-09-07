@@ -72,6 +72,30 @@ sguala rsync -- -avz ./dist/ web-01:/var/www/app/
 
 In the TUI, select a host and press `t` for get / put / sftp.
 
+## Import / export (bundle)
+
+Cross-app backup format (`sguala-bundle`): `hosts.json` + optional keys/passwords + OpenSSH fragment.
+
+```bash
+# hosts only (safe to share / commit metadata)
+sguala export ./backup.sguala.zip
+
+# include IdentityFile private keys and stored passwords
+sguala export ./full.sguala.zip --keys --secrets
+
+# restore into ~/.ssh/config (+ keys under ~/.ssh/sguala-keys, passwords via secret store)
+sguala import ./backup.sguala.zip
+sguala import ./full.sguala.zip --overwrite
+
+# OpenSSH fragment only
+sguala export-ssh ./hosts.conf
+sguala import-ssh ./hosts.conf
+```
+
+Desktop Settings has the same **Export / Import Bundle** (compatible with this format). Legacy JSON export remains available.
+
+Default export **excludes** keys and passwords. Do not upload `--secrets` archives.
+
 ## Password auth
 
 OpenSSH config cannot store passwords. For password-only hosts:
@@ -117,6 +141,10 @@ Legacy `hosts:` lists in this file are ignored.
 | `sguala sftp` | Interactive `sftp` |
 | `sguala rsync` | `rsync -e ssh …` |
 | `sguala passwd` | Store / delete Host password (keyring or file) |
+| `sguala export` | Export sguala-bundle (dir or `.zip`) |
+| `sguala import` | Import bundle into `~/.ssh/config` |
+| `sguala export-ssh` | Write OpenSSH config fragment |
+| `sguala import-ssh` | Append OpenSSH fragment to config |
 | `sguala init` | Write settings YAML if missing |
 | `sguala version` | Print version |
 
