@@ -81,6 +81,14 @@ contextBridge.exposeInMainWorld('main', {
       return await ipcRenderer.invoke('conf-import-settings');
     },
 
+    listSshConfigHosts: async () => {
+      return await ipcRenderer.invoke('conf-list-ssh-config-hosts');
+    },
+
+    importSshConfigHosts: async (payload: { groupUuid?: string; names?: string[] }) => {
+      return await ipcRenderer.invoke('conf-import-ssh-config-hosts', payload);
+    },
+
     listSshKeys: async () => {
       return await ipcRenderer.invoke('conf-list-ssh-keys');
     },

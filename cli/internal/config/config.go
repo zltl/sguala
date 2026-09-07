@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/zltl/sguala/cli/internal/sshconfig"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,22 +17,25 @@ const (
 	DefaultWorkers = 8
 )
 
+// Config holds app settings. Hosts always come from OpenSSH config (see AttachSSHHosts).
 type Config struct {
-	Refresh Duration `yaml:"refresh"`
-	Timeout Duration `yaml:"timeout"`
-	Workers int      `yaml:"workers"`
-	Hosts   []Host   `yaml:"hosts"`
+	Refresh   Duration `yaml:"refresh"`
+	Timeout   Duration `yaml:"timeout"`
+	Workers   int      `yaml:"workers"`
+	SSHConfig string   `yaml:"ssh_config,omitempty"` // optional path; default ~/.ssh/config
+
+	// Hosts is filled from SSH config at runtime; never written to settings YAML.
+	Hosts []Host `yaml:"-"`
 }
 
+// Host is a concrete OpenSSH Host entry adapted for dialing / display.
 type Host struct {
-	Name       string `yaml:"name"`
-	Group      string `yaml:"group"`
-	Addr       string `yaml:"addr"` // host:port or host
-	User       string `yaml:"user"`
-	Identity   string `yaml:"identity"`    // path to private key
-	ProxyJump  string `yaml:"proxy_jump"`  // optional bastion name (matches another host.name) or user@host:port
-	Password   string `yaml:"password"`    // discouraged; prefer agent/identity
-	Tags       []string `yaml:"tags"`
+	Name      string // Host alias (ssh target name)
+	Group     string // unused for SSH wrap; kept for display column
+	Addr      string // host:port
+	User      string
+	Identity  string // IdentityFile path
+	ProxyJump string
 }
 
 // Duration wraps time.Duration for YAML strings like "10s".
@@ -64,7 +68,6 @@ func Default() Config {
 		Refresh: Duration(DefaultRefresh),
 		Timeout: Duration(DefaultTimeout),
 		Workers: DefaultWorkers,
-		Hosts:   nil,
 	}
 }
 
@@ -79,20 +82,110 @@ func DefaultPath() (string, error) {
 	return filepath.Join(dir, "sguala", "config.yaml"), nil
 }
 
-func Load(path string) (Config, error) {
+func DefaultSSHConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".ssh", "config"), nil
+}
+
+// ResolvedSSHConfig returns the OpenSSH config path to use.
+func (c Config) ResolvedSSHConfig() (string, error) {
+	if c.SSHConfig != "" {
+		return expandHome(c.SSHConfig), nil
+	}
+	return DefaultSSHConfigPath()
+}
+
+func expandHome(p string) string {
+	if p == "" || p[0] != '~' {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
+	}
+	if p == "~" {
+		return home
+	}
+	if len(p) >= 2 && (p[1] == '/' || p[1] == '\\') {
+		return filepath.Join(home, p[2:])
+	}
+	return p
+}
+
+// LoadSettings reads refresh/timeout/workers (and optional ssh_config). Hosts are not loaded.
+func LoadSettings(path string) (Config, error) {
 	cfg := Default()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
 	}
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	// Ignore legacy "hosts:" in YAML by decoding into a settings-only shape first.
+	type settingsFile struct {
+		Refresh   Duration `yaml:"refresh"`
+		Timeout   Duration `yaml:"timeout"`
+		Workers   int      `yaml:"workers"`
+		SSHConfig string   `yaml:"ssh_config"`
+	}
+	var raw settingsFile
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return cfg, err
 	}
+	cfg.Refresh = raw.Refresh
+	cfg.Timeout = raw.Timeout
+	cfg.Workers = raw.Workers
+	cfg.SSHConfig = raw.SSHConfig
 	cfg.applyDefaults()
-	if err := cfg.Validate(); err != nil {
-		return cfg, err
-	}
 	return cfg, nil
+}
+
+// AttachSSHHosts loads concrete Host entries from OpenSSH config into cfg.Hosts.
+func AttachSSHHosts(cfg *Config) error {
+	path, err := cfg.ResolvedSSHConfig()
+	if err != nil {
+		return err
+	}
+	list, err := sshconfig.LoadHosts(path)
+	if err != nil {
+		return err
+	}
+	hosts := make([]Host, 0, len(list))
+	for _, h := range list {
+		port := h.Port
+		if port <= 0 {
+			port = 22
+		}
+		hosts = append(hosts, Host{
+			Name:      h.Name,
+			Addr:      fmt.Sprintf("%s:%d", h.HostName, port),
+			User:      h.User,
+			Identity:  h.IdentityFile,
+			ProxyJump: h.ProxyJump,
+		})
+	}
+	cfg.Hosts = hosts
+	return nil
+}
+
+// LoadRuntime loads settings YAML (optional) + hosts from ~/.ssh/config.
+func LoadRuntime(settingsPath string) (Config, string, error) {
+	cfg := Default()
+	if settingsPath != "" {
+		loaded, err := LoadSettings(settingsPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return cfg, settingsPath, err
+			}
+		} else {
+			cfg = loaded
+		}
+	}
+	if err := AttachSSHHosts(&cfg); err != nil {
+		return cfg, settingsPath, err
+	}
+	return cfg, settingsPath, nil
 }
 
 func (c *Config) applyDefaults() {
@@ -105,54 +198,6 @@ func (c *Config) applyDefaults() {
 	if c.Workers <= 0 {
 		c.Workers = DefaultWorkers
 	}
-	for i := range c.Hosts {
-		h := &c.Hosts[i]
-		if h.User == "" {
-			h.User = "root"
-		}
-		if h.Group == "" {
-			h.Group = "default"
-		}
-		if h.Addr != "" && !hasPort(h.Addr) {
-			h.Addr = h.Addr + ":22"
-		}
-	}
-}
-
-func hasPort(addr string) bool {
-	// crude but enough for host:port / [ipv6]:port
-	if len(addr) == 0 {
-		return false
-	}
-	if addr[0] == '[' {
-		return len(addr) > 2 && addr[len(addr)-1] != ']'
-	}
-	for i := len(addr) - 1; i >= 0; i-- {
-		if addr[i] == ':' {
-			return true
-		}
-		if addr[i] == ']' {
-			return false
-		}
-	}
-	return false
-}
-
-func (c Config) Validate() error {
-	seen := map[string]struct{}{}
-	for _, h := range c.Hosts {
-		if h.Name == "" {
-			return errors.New("host name is required")
-		}
-		if h.Addr == "" {
-			return fmt.Errorf("host %q: addr is required", h.Name)
-		}
-		if _, ok := seen[h.Name]; ok {
-			return fmt.Errorf("duplicate host name %q", h.Name)
-		}
-		seen[h.Name] = struct{}{}
-	}
-	return nil
 }
 
 func (c Config) HostByName(name string) (Host, bool) {
@@ -173,27 +218,31 @@ func EnsureExample(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	example := `# sguala-cli config
+	example := `# sguala-cli settings (hosts come from ~/.ssh/config)
 refresh: 10s
 timeout: 5s
 workers: 8
-
-hosts:
-  # - name: web-01
-  #   group: prod
-  #   addr: 10.0.0.1:22
-  #   user: deploy
-  #   identity: ~/.ssh/id_ed25519
-  #   proxy_jump: bastion   # optional: another host.name or user@host:port
+# ssh_config: ~/.ssh/config
 `
 	return os.WriteFile(path, []byte(example), 0o600)
 }
 
-func Write(path string, cfg Config) error {
+func WriteSettings(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(cfg)
+	type settingsFile struct {
+		Refresh   Duration `yaml:"refresh"`
+		Timeout   Duration `yaml:"timeout"`
+		Workers   int      `yaml:"workers"`
+		SSHConfig string   `yaml:"ssh_config,omitempty"`
+	}
+	data, err := yaml.Marshal(settingsFile{
+		Refresh:   cfg.Refresh,
+		Timeout:   cfg.Timeout,
+		Workers:   cfg.Workers,
+		SSHConfig: cfg.SSHConfig,
+	})
 	if err != nil {
 		return err
 	}

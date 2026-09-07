@@ -24,10 +24,10 @@ func main() {
 	root := &cobra.Command{
 		Use:   "sguala",
 		Short: "Agentless SSH server monitor (TUI)",
-		Long:  "sguala-cli monitors Linux hosts over SSH without agents. Default command opens the TUI.",
+		Long:  "sguala-cli monitors hosts defined in ~/.ssh/config. Optional settings YAML controls refresh/timeout/workers.",
 		RunE:  runTUI,
 	}
-	root.PersistentFlags().StringVar(&cfgPath, "config", "", "config file (default: $SGUALA_CONFIG or ~/.config/sguala/config.yaml)")
+	root.PersistentFlags().StringVar(&cfgPath, "config", "", "settings file (default: $SGUALA_CONFIG or ~/.config/sguala/config.yaml)")
 
 	checkCmd := &cobra.Command{
 		Use:   "check",
@@ -45,16 +45,18 @@ func main() {
 
 	initCmd := &cobra.Command{
 		Use:   "init",
-		Short: "Write an example config if missing",
+		Short: "Write settings YAML if missing (hosts stay in ~/.ssh/config)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path, err := resolveConfigPath()
+			path, err := resolveSettingsPath()
 			if err != nil {
 				return err
 			}
 			if err := config.EnsureExample(path); err != nil {
 				return err
 			}
+			sshPath, _ := config.DefaultSSHConfigPath()
 			fmt.Println("wrote", path)
+			fmt.Println("hosts are read from", sshPath)
 			return nil
 		},
 	}
@@ -65,31 +67,25 @@ func main() {
 	}
 }
 
-func resolveConfigPath() (string, error) {
+func resolveSettingsPath() (string, error) {
 	if cfgPath != "" {
 		return cfgPath, nil
 	}
 	return config.DefaultPath()
 }
 
-func loadOrHint() (config.Config, string, error) {
-	path, err := resolveConfigPath()
+func loadRuntime() (config.Config, string, error) {
+	path, err := resolveSettingsPath()
 	if err != nil {
 		return config.Config{}, "", err
 	}
-	cfg, err := config.Load(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			_ = config.EnsureExample(path)
-			return config.Default(), path, nil
-		}
-		return config.Config{}, path, err
-	}
-	return cfg, path, nil
+	// Ensure settings file exists for discoverability; hosts still come from SSH config.
+	_ = config.EnsureExample(path)
+	return config.LoadRuntime(path)
 }
 
 func runTUI(cmd *cobra.Command, args []string) error {
-	cfg, path, err := loadOrHint()
+	cfg, path, err := loadRuntime()
 	if err != nil {
 		return err
 	}
@@ -107,7 +103,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
-	cfg, _, err := loadOrHint()
+	cfg, _, err := loadRuntime()
 	if err != nil {
 		return err
 	}
@@ -117,8 +113,8 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	eng.RunOnce(ctx)
 
 	type out struct {
-		FetchedAt time.Time         `json:"fetched_at"`
-		Hosts     interface{}       `json:"hosts"`
+		FetchedAt time.Time   `json:"fetched_at"`
+		Hosts     interface{} `json:"hosts"`
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")

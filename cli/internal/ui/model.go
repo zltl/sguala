@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"sort"
@@ -59,7 +58,7 @@ var keys = keyMap{
 	Search:  key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 	Sort:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
 	SSH:     key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open ssh")),
-	Edit:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit config")),
+	Edit:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit ssh config")),
 	Help:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 	Quit:    key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
@@ -97,11 +96,11 @@ const (
 )
 
 type Model struct {
-	engine     *engine.Engine
-	configPath string
-	help       help.Model
-	keys       keyMap
-	search     textinput.Model
+	engine       *engine.Engine
+	settingsPath string
+	help         help.Model
+	keys         keyMap
+	search       textinput.Model
 
 	width  int
 	height int
@@ -117,20 +116,20 @@ type Model struct {
 	err  string
 }
 
-func New(eng *engine.Engine, configPath string) Model {
+func New(eng *engine.Engine, settingsPath string) Model {
 	h := help.New()
 	h.ShowAll = false
 	ti := textinput.New()
-	ti.Placeholder = "search host / group / addr…"
+	ti.Placeholder = "search host / user / addr…"
 	ti.CharLimit = 64
 	ti.Width = 40
 	ti.Prompt = "/ "
 	return Model{
-		engine:     eng,
-		configPath: configPath,
-		help:       h,
-		keys:       keys,
-		search:     ti,
+		engine:       eng,
+		settingsPath: settingsPath,
+		help:         h,
+		keys:         keys,
+		search:       ti,
 	}
 }
 
@@ -265,10 +264,7 @@ func hostMatches(cfg config.Config, s metric.Snapshot, q string) bool {
 	}
 	hay := strings.ToLower(s.Host + " " + s.Group)
 	if h, ok := cfg.HostByName(s.Host); ok {
-		hay += " " + strings.ToLower(h.Addr+" "+h.User+" "+h.Name)
-		for _, tag := range h.Tags {
-			hay += " " + strings.ToLower(tag)
-		}
+		hay += " " + strings.ToLower(h.Addr+" "+h.User+" "+h.Name+" "+h.ProxyJump)
 	}
 	return strings.Contains(hay, q)
 }
@@ -313,79 +309,17 @@ func sortSnapshots(rows []metric.Snapshot, mode sortMode) {
 }
 
 func (m Model) openSSH(hostName string) tea.Cmd {
-	cfg := m.engine.Config()
-	h, ok := cfg.HostByName(hostName)
-	if !ok {
-		return nil
-	}
-	args := buildSSHArgs(cfg, h)
-	c := exec.Command("ssh", args...)
+	// Delegate to system ssh so ~/.ssh/config (ProxyJump, IdentityFile, etc.) applies.
+	c := exec.Command("ssh", hostName)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			return snapMsg{} // ignore; user returns to TUI
+			return snapMsg{}
 		}
 		return refreshDoneMsg{}
 	})
-}
-
-func buildSSHArgs(cfg config.Config, h config.Host) []string {
-	var args []string
-	if h.Identity != "" {
-		args = append(args, "-i", sshExpand(h.Identity))
-	}
-	if h.ProxyJump != "" {
-		if j, ok := cfg.HostByName(h.ProxyJump); ok {
-			jHost, jPort := splitHostPort(j.Addr)
-			if j.Identity != "" {
-				pc := []string{"ssh", "-i", sshExpand(j.Identity)}
-				if jPort != "22" {
-					pc = append(pc, "-p", jPort)
-				}
-				pc = append(pc, "-W", "%h:%p", j.User+"@"+jHost)
-				args = append(args, "-o", "ProxyCommand="+strings.Join(pc, " "))
-			} else {
-				// -J accepts user@host:port
-				jump := j.User + "@" + jHost
-				if jPort != "22" {
-					jump += ":" + jPort
-				}
-				args = append(args, "-J", jump)
-			}
-		} else {
-			args = append(args, "-J", h.ProxyJump)
-		}
-	}
-	host, port := splitHostPort(h.Addr)
-	// Final destination must use -p; user@host:port is treated as a hostname by OpenSSH.
-	if port != "22" {
-		args = append(args, "-p", port)
-	}
-	args = append(args, h.User+"@"+host)
-	return args
-}
-
-func splitHostPort(addr string) (host, port string) {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return addr, "22"
-	}
-	if port == "" {
-		port = "22"
-	}
-	return host, port
-}
-
-func sshExpand(p string) string {
-	if strings.HasPrefix(p, "~/") {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			return home + p[1:]
-		}
-	}
-	return p
 }
 
 func (m Model) openEditor() tea.Cmd {
@@ -393,15 +327,20 @@ func (m Model) openEditor() tea.Cmd {
 	if editor == "" {
 		editor = "vi"
 	}
-	c := exec.Command(editor, m.configPath)
+	cfg := m.engine.Config()
+	sshPath, err := cfg.ResolvedSSHConfig()
+	if err != nil {
+		return nil
+	}
+	c := exec.Command(editor, sshPath)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	path := m.configPath
 	eng := m.engine
 	return tea.ExecProcess(c, func(err error) tea.Msg {
-		if cfg, e := config.Load(path); e == nil {
-			eng.SetConfig(cfg)
+		next := eng.Config()
+		if e := config.AttachSSHHosts(&next); e == nil {
+			eng.SetConfig(next)
 		}
 		return refreshDoneMsg{}
 	})
@@ -465,8 +404,8 @@ func (m Model) View() string {
 
 func (m Model) viewOverview() string {
 	var b strings.Builder
-	header := fmt.Sprintf("%-10s %-14s %-2s %6s %14s %14s %6s %6s",
-		"GROUP", "HOST", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
+	header := fmt.Sprintf("%-14s %-18s %-2s %6s %14s %14s %6s %6s",
+		"HOST", "ADDR", "ST", "CPU", "MEM", "DISK", "LOAD", "LAT")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteByte('\n')
 
@@ -474,14 +413,14 @@ func (m Model) viewOverview() string {
 		if strings.TrimSpace(m.query) != "" {
 			b.WriteString(mutedStyle.Render("  (no matches)"))
 		} else {
-			b.WriteString(mutedStyle.Render("  (no hosts — edit config with e)"))
+			b.WriteString(mutedStyle.Render("  (no hosts in ~/.ssh/config — press e to edit)"))
 		}
 		b.WriteByte('\n')
 		return b.String()
 	}
 
 	for i, s := range m.rows {
-		line := formatRow(s)
+		line := formatRow(m.engine.Config(), s)
 		if i == m.cursor {
 			line = selStyle.Render(line)
 		} else if !s.Online {
@@ -509,12 +448,16 @@ func isHighUsage(s metric.Snapshot) bool {
 	return false
 }
 
-func formatRow(s metric.Snapshot) string {
+func formatRow(cfg config.Config, s metric.Snapshot) string {
 	st := "○"
 	if s.Online {
 		st = okStyle.Render("●")
 	} else {
 		st = errStyle.Render("○")
+	}
+	addr := "—"
+	if h, ok := cfg.HostByName(s.Host); ok {
+		addr = h.User + "@" + h.Addr
 	}
 	cpu := "—"
 	mem := "—"
@@ -530,13 +473,21 @@ func formatRow(s metric.Snapshot) string {
 		load = fmt.Sprintf("%5.2f", s.Load1)
 		lat = fmt.Sprintf("%4dms", s.Latency.Milliseconds())
 	}
-	return fmt.Sprintf("%-10s %-14s %-2s %6s %14s %14s %6s %6s",
-		trunc(s.Group, 10), trunc(s.Host, 14), st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
+	return fmt.Sprintf("%-14s %-18s %-2s %6s %14s %14s %6s %6s",
+		trunc(s.Host, 14), trunc(addr, 18), st, cpu, trunc(mem, 14), trunc(disk, 14), load, lat)
 }
 
 func (m Model) viewDetail(s metric.Snapshot) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s / %s\n", s.Group, titleStyle.Render(s.Host))
+	cfg := m.engine.Config()
+	title := s.Host
+	if h, ok := cfg.HostByName(s.Host); ok {
+		title = fmt.Sprintf("%s  %s@%s", s.Host, h.User, h.Addr)
+		if h.ProxyJump != "" {
+			title += "  via " + h.ProxyJump
+		}
+	}
+	fmt.Fprintf(&b, "%s\n", titleStyle.Render(title))
 	if !s.Online {
 		fmt.Fprintf(&b, "%s %s\n", errStyle.Render("offline"), s.Error)
 		return b.String()

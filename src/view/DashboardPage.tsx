@@ -6,6 +6,7 @@ import GroupIcon from '@mui/icons-material/Storage';
 import ComputerIcon from '@mui/icons-material/Computer';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import ClickAwayListener from '@mui/base/ClickAwayListener';
@@ -23,6 +24,7 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { EditServerPage } from './EditServerPage';
 import { QuickAddPage } from './QuickAddPage';
+import { ImportSshConfigPage } from './ImportSshConfigPage';
 
 import './ShellPage.css';
 import { LabelFab } from './LabelFab';
@@ -67,6 +69,12 @@ export function DashboardPage() {
     name: t('Quick Add'),
     page: <QuickAddPage goBack={goHome} />,
     icon: <FlashOnIcon />,
+  };
+
+  const importSshConfigPage = {
+    name: t('Import SSH Config'),
+    page: <ImportSshConfigPage goBack={goHome} />,
+    icon: <TerminalIcon />,
   };
 
   const reloadConf = async () => {
@@ -205,6 +213,16 @@ export function DashboardPage() {
               onClick={() => {
                 setShowAllButtons(false);
                 Observer.notify('shellNavigateTo', addGroupPage);
+              }}
+            />
+
+            <LabelFab
+              label={t('Import SSH Config')}
+              icon={<TerminalIcon />}
+              color='secondary'
+              onClick={() => {
+                setShowAllButtons(false);
+                Observer.notify('shellNavigateTo', importSshConfigPage);
               }}
             />
 

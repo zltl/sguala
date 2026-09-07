@@ -53,11 +53,16 @@ func (e *Engine) SetConfig(cfg config.Config) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.cfg = cfg
+	next := make(map[string]metric.Snapshot, len(cfg.Hosts))
 	for _, h := range cfg.Hosts {
-		if _, ok := e.snaps[h.Name]; !ok {
-			e.snaps[h.Name] = metric.Snapshot{Host: h.Name, Group: h.Group}
+		if s, ok := e.snaps[h.Name]; ok {
+			s.Group = h.Group
+			next[h.Name] = s
+		} else {
+			next[h.Name] = metric.Snapshot{Host: h.Name, Group: h.Group}
 		}
 	}
+	e.snaps = next
 }
 
 func (e *Engine) Snapshots() []metric.Snapshot {
@@ -154,7 +159,6 @@ func (e *Engine) dialJump(cfg config.Config, jump string) (*ssh.Client, error) {
 			Addr:     h.Addr,
 			User:     h.User,
 			Identity: h.Identity,
-			Password: h.Password,
 			Timeout:  cfg.Timeout.Dur(),
 		})
 	}

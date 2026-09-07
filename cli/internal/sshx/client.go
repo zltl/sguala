@@ -1,6 +1,7 @@
 package sshx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -156,13 +157,51 @@ func hostKeyCallback() ssh.HostKeyCallback {
 		return ssh.InsecureIgnoreHostKey() //nolint:gosec
 	}
 	path := filepath.Join(home, ".ssh", "known_hosts")
-	cb, err := knownhosts.New(path)
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		_ = os.WriteFile(path, []byte{}, 0o600)
+	}
+
+	inner, err := knownhosts.New(path)
 	if err != nil {
-		// Missing known_hosts is common on fresh boxes; fall back insecurely
-		// but prefer known_hosts when present.
 		return ssh.InsecureIgnoreHostKey() //nolint:gosec
 	}
-	return cb
+
+	// OpenSSH-like StrictHostKeyChecking=accept-new:
+	// unknown hosts are accepted and appended; changed keys still fail.
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		err := inner(hostname, remote, key)
+		if err == nil {
+			return nil
+		}
+		var keyErr *knownhosts.KeyError
+		if !errors.As(err, &keyErr) {
+			return err
+		}
+		if len(keyErr.Want) > 0 {
+			// Known host, wrong key — refuse (possible MITM).
+			return err
+		}
+		_ = appendKnownHost(path, hostname, remote, key)
+		return nil
+	}
+}
+
+func appendKnownHost(path, hostname string, remote net.Addr, key ssh.PublicKey) error {
+	addrs := []string{hostname}
+	if remote != nil {
+		if normalized := knownhosts.Normalize(remote.String()); normalized != "" && normalized != hostname {
+			addrs = append(addrs, normalized)
+		}
+	}
+	line := knownhosts.Line(addrs, key)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = fmt.Fprintln(f, line)
+	return err
 }
 
 func Dial(opts DialOptions) (*ssh.Client, error) {

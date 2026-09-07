@@ -21,7 +21,6 @@ func Collect(cfg config.Config, host config.Host, jumpClient *ssh.Client) Snapsh
 		Addr:     host.Addr,
 		User:     host.User,
 		Identity: host.Identity,
-		Password: host.Password,
 		Timeout:  cfg.Timeout.Dur(),
 		Jump:     jumpClient,
 	})

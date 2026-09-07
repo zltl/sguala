@@ -46,5 +46,16 @@
   "Add server failed": "添加服务器失败",
   "Search hosts": "搜索主机（名称 / IP / 用户 / 分组）",
   "Clear search": "清除搜索",
-  "Search result count": "匹配 {{count}} 台"
+  "Search result count": "匹配 {{count}} 台",
+  "Import SSH Config": "导入 SSH Config",
+  "Import SSH config hint": "从 {{path}} 读取 Host 条目（跳过通配符）。已存在同名主机会跳过。",
+  "Failed to read SSH config": "读取 ~/.ssh/config 失败",
+  "No concrete hosts in SSH config": "SSH config 中没有可导入的具体 Host",
+  "Select at least one host": "请至少选择一台主机",
+  "Select all": "全选",
+  "Select none": "全不选",
+  "Reload": "重新加载",
+  "Selected count": "已选 {{count}} / {{total}}",
+  "Import": "导入",
+  "SSH config import result": "导入完成：新增 {{added}}，跳过 {{skipped}}"
 }

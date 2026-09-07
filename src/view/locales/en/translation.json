@@ -21,5 +21,16 @@
   "Add server failed": "Add server failed",
   "Search hosts": "Search hosts (name / IP / user / group)",
   "Clear search": "Clear search",
-  "Search result count": "{{count}} matched"
+  "Search result count": "{{count}} matched",
+  "Import SSH Config": "Import SSH Config",
+  "Import SSH config hint": "Hosts from {{path}} (wildcards skipped). Existing names are skipped.",
+  "Failed to read SSH config": "Failed to read ~/.ssh/config",
+  "No concrete hosts in SSH config": "No concrete Host entries to import",
+  "Select at least one host": "Select at least one host",
+  "Select all": "Select all",
+  "Select none": "Select none",
+  "Reload": "Reload",
+  "Selected count": "Selected {{count}} / {{total}}",
+  "Import": "Import",
+  "SSH config import result": "Done: added {{added}}, skipped {{skipped}}"
 }

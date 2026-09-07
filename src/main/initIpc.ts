@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
+import { loadSshConfigHosts } from "./sshConfig";
 
 const SSH_KEY_SKIP = new Set([
   'known_hosts',
@@ -22,6 +23,31 @@ function isUnderSshDir(filePath: string): boolean {
   const sshDir = path.resolve(getSshDir());
   const resolved = path.resolve(filePath);
   return resolved === sshDir || resolved.startsWith(sshDir + path.sep);
+}
+
+/** Extract a Host-alias-like token from ProxyJump for hop wiring. */
+function proxyJumpAlias(raw: string): string | null {
+  let s = raw.trim().split(',')[0].trim();
+  if (!s) {
+    return null;
+  }
+  if (s.includes('@')) {
+    s = s.slice(s.lastIndexOf('@') + 1);
+  }
+  if (s.startsWith('[')) {
+    return null;
+  }
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s.split(':')[0])) {
+    return null;
+  }
+  const colon = s.lastIndexOf(':');
+  if (colon > 0 && /^\d+$/.test(s.slice(colon + 1))) {
+    s = s.slice(0, colon);
+  }
+  if (!s || s.includes('*') || s.includes('?')) {
+    return null;
+  }
+  return s;
 }
 
 async function readPrivateKeyFile(filePath: string): Promise<{ type: string; path?: string; content?: string; message?: string; name?: string }> {
@@ -357,6 +383,114 @@ export function initIpc() {
       await conf.store(oc);
       await conf.load();
       return { type: 'ok' };
+    } catch (e: any) {
+      return { type: 'error', message: e?.message || 'Import failed' };
+    }
+  });
+
+  ipcMain.handle('conf-list-ssh-config-hosts', async () => {
+    try {
+      const hosts = await loadSshConfigHosts();
+      return { type: 'ok', hosts, path: path.join(app.getPath('home'), '.ssh', 'config') };
+    } catch (e: any) {
+      return { type: 'error', message: e?.message || 'Failed to read ~/.ssh/config' };
+    }
+  });
+
+  ipcMain.handle('conf-import-ssh-config-hosts', async (_event, payload: {
+    groupUuid?: string;
+    names?: string[];
+  }) => {
+    try {
+      const hosts = await loadSshConfigHosts();
+      const selectedNames = payload?.names;
+      const selected = selectedNames && selectedNames.length > 0
+        ? hosts.filter((h) => selectedNames.includes(h.name))
+        : hosts;
+      if (selected.length === 0) {
+        return { type: 'error', message: 'No hosts selected' };
+      }
+
+      const c = conf.get();
+      let group = payload?.groupUuid ? conf.getGroup(payload.groupUuid) : undefined;
+      if (!group) {
+        group = c.groups.find((g) => g.name === 'Default') || c.groups[0];
+      }
+      if (!group) {
+        return { type: 'error', message: 'Group not exists' };
+      }
+
+      // Existing name → uuid map across all groups (for hop wiring + skip)
+      const nameToUuid = new Map<string, string>();
+      for (const g of c.groups) {
+        for (const s of g.servers || []) {
+          nameToUuid.set(s.name, s.uuid);
+        }
+      }
+
+      let added = 0;
+      let skipped = 0;
+      const imported: { name: string; uuid: string; proxyJump?: string }[] = [];
+
+      for (const h of selected) {
+        if (nameToUuid.has(h.name)) {
+          skipped += 1;
+          continue;
+        }
+        let privateKey: string | undefined;
+        if (h.identityFile) {
+          try {
+            const keyContent = await fs.readFile(h.identityFile, 'utf-8');
+            if (keyContent.includes('PRIVATE KEY') || keyContent.includes('OPENSSH PRIVATE KEY')) {
+              privateKey = keyContent;
+            }
+          } catch {
+            // leave empty; agent / later edit
+          }
+        }
+        const server: any = {
+          uuid: uuidv4(),
+          name: h.name,
+          host: h.hostName,
+          port: h.port,
+          username: h.user,
+          usePassword: false,
+          privateKey,
+          updateTime: new Date().toISOString(),
+          useHop: false,
+        };
+        group.servers.push(server);
+        nameToUuid.set(h.name, server.uuid);
+        imported.push({ name: h.name, uuid: server.uuid, proxyJump: h.proxyJump });
+        added += 1;
+      }
+
+      // Wire ProxyJump → hop when jump target matches a known server name
+      for (const item of imported) {
+        if (!item.proxyJump) {
+          continue;
+        }
+        const alias = proxyJumpAlias(item.proxyJump);
+        if (!alias) {
+          continue;
+        }
+        const hopUuid = nameToUuid.get(alias);
+        if (!hopUuid || hopUuid === item.uuid) {
+          continue;
+        }
+        for (const g of c.groups) {
+          const server = g.servers.find((s) => s.uuid === item.uuid);
+          if (server) {
+            server.useHop = true;
+            server.hopServerUuid = hopUuid;
+            break;
+          }
+        }
+      }
+
+      await conf.store(c);
+      await conf.load();
+      return { type: 'ok', added, skipped, total: selected.length };
     } catch (e: any) {
       return { type: 'error', message: e?.message || 'Import failed' };
     }
