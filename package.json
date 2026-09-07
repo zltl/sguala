@@ -10,7 +10,9 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "cli:build": "make -C cli build",
+    "cli:test": "make -C cli test"
   },
   "keywords": [],
   "author": {
