@@ -38,6 +38,34 @@ func sanitizeTermTitle(title string) string {
 	return title
 }
 
+// hostTermLabel is the SSH Host alias, optionally prefixed with its group.
+func hostTermLabel(group, alias string) string {
+	alias = strings.TrimSpace(alias)
+	group = strings.TrimSpace(group)
+	switch {
+	case alias == "":
+		return group
+	case group == "":
+		return alias
+	default:
+		return group + "/" + alias
+	}
+}
+
+// hostActionTitle builds titles like "ssh prod/web-01" or "get web-01".
+func hostActionTitle(action, group, alias string) string {
+	label := hostTermLabel(group, alias)
+	action = strings.TrimSpace(action)
+	switch {
+	case action == "":
+		return label
+	case label == "":
+		return action
+	default:
+		return action + " " + label
+	}
+}
+
 // titledCmd runs an *exec.Cmd after setting the terminal title (post TUI release).
 type titledCmd struct {
 	cmd   *exec.Cmd

@@ -140,8 +140,10 @@ func Shell(client *ssh.Client) error {
 		return fmt.Errorf("request pty: %w", err)
 	}
 
-	session.Stdout = os.Stdout
-	session.Stderr = os.Stderr
+	// Strip remote OSC 0/1/2 (window/icon title) so Host alias / group titles stick.
+	outFilter := &oscTitleFilter{w: os.Stdout}
+	session.Stdout = outFilter
+	session.Stderr = outFilter
 	stdin, err := session.StdinPipe()
 	if err != nil {
 		return err
@@ -167,4 +169,98 @@ func Shell(client *ssh.Client) error {
 	defer signal.Stop(ch)
 
 	return session.Wait()
+}
+
+// oscTitleFilter drops OSC 0/1/2 (set window/icon title). Other OSC pass through.
+type oscTitleFilter struct {
+	w     io.Writer
+	state int
+	buf   []byte // bytes held while deciding (ESC ] …)
+}
+
+const (
+	oscNorm = iota
+	oscEsc
+	oscBody // after ESC ], collecting until BEL or ST
+)
+
+func (f *oscTitleFilter) Write(p []byte) (int, error) {
+	var out []byte
+	flushHeld := func() {
+		if len(f.buf) > 0 {
+			out = append(out, f.buf...)
+			f.buf = f.buf[:0]
+		}
+	}
+	for _, b := range p {
+		switch f.state {
+		case oscNorm:
+			if b == 0x1b {
+				f.state = oscEsc
+				f.buf = append(f.buf[:0], b)
+			} else {
+				out = append(out, b)
+			}
+		case oscEsc:
+			f.buf = append(f.buf, b)
+			if b == ']' {
+				f.state = oscBody
+			} else {
+				flushHeld()
+				f.state = oscNorm
+			}
+		case oscBody:
+			f.buf = append(f.buf, b)
+			ended := false
+			st := false
+			if b == 0x07 {
+				ended = true
+			} else if b == '\\' && len(f.buf) >= 2 && f.buf[len(f.buf)-2] == 0x1b {
+				ended = true
+				st = true
+			}
+			if !ended {
+				// safety: abort hold if OSC grows huge (malformed)
+				if len(f.buf) > 4096 {
+					flushHeld()
+					f.state = oscNorm
+				}
+				continue
+			}
+			payload := f.buf
+			// ESC ] … BEL  or  ESC ] … ESC \
+			end := len(payload) - 1
+			if st {
+				end = len(payload) - 2
+			}
+			body := payload[2:end] // after ESC ]
+			drop := isTitleOSC(body)
+			if !drop {
+				out = append(out, payload...)
+			}
+			f.buf = f.buf[:0]
+			f.state = oscNorm
+		}
+	}
+	if len(out) > 0 {
+		if _, err := f.w.Write(out); err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
+}
+
+func isTitleOSC(body []byte) bool {
+	// Ps is 0, 1, or 2 optionally followed by ;Pt
+	if len(body) == 0 {
+		return false
+	}
+	ps := body[0]
+	if ps != '0' && ps != '1' && ps != '2' {
+		return false
+	}
+	if len(body) == 1 {
+		return true
+	}
+	return body[1] == ';'
 }

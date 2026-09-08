@@ -161,7 +161,7 @@ Legacy `hosts:` lists in this file are ignored.
 | `?` | Help |
 | `q` | Quit |
 
-Terminal emulators that support OSC titles show `ssh <alias>` / `get <alias>` / `sftp <alias>` while a session is open, then restore `sguala`.
+Terminal emulators that support OSC titles show `ssh group/alias` (or `ssh alias` without a group) / `get …` / `sftp …` while a session is open, then restore `sguala`. Remote shells cannot overwrite the title with the machine hostname.
 
 ## Relation to the Electron app
 

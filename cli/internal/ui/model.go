@@ -372,7 +372,7 @@ func (m Model) updateTransfer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case 2: // sftp
 				host := m.xferHost
 				m.endTransfer()
-				return m, m.runRemote("sftp "+host, func(cfg config.Config) error {
+				return m, m.runRemote(m.titleForHost("sftp", host), func(cfg config.Config) error {
 					client, cleanup, err := remote.DialByName(cfg, host)
 					if err != nil {
 						return err
@@ -421,7 +421,7 @@ func (m Model) submitXferPrompt() (tea.Model, tea.Cmd) {
 		}
 		host, remotePath, local := m.xferHost, m.xferRemote, val
 		m.endTransfer()
-		return m, m.runRemote("get "+host, func(cfg config.Config) error {
+		return m, m.runRemote(m.titleForHost("get", host), func(cfg config.Config) error {
 			client, cleanup, err := remote.DialByName(cfg, host)
 			if err != nil {
 				return err
@@ -448,7 +448,7 @@ func (m Model) submitXferPrompt() (tea.Model, tea.Cmd) {
 		}
 		host, locals, remoteDir := m.xferHost, m.xferLocals, val
 		m.endTransfer()
-		return m, m.runRemote("put "+host, func(cfg config.Config) error {
+		return m, m.runRemote(m.titleForHost("put", host), func(cfg config.Config) error {
 			client, cleanup, err := remote.DialByName(cfg, host)
 			if err != nil {
 				return err
@@ -588,9 +588,24 @@ func sortSnapshots(rows []metric.Snapshot, mode sortMode) {
 	}
 }
 
+func (m Model) titleForHost(action, alias string) string {
+	cfg := m.engine.Config()
+	group := ""
+	if h, ok := cfg.HostByName(alias); ok {
+		group = h.Group
+	}
+	for _, s := range m.rows {
+		if s.Host == alias && s.Group != "" {
+			group = s.Group
+			break
+		}
+	}
+	return hostActionTitle(action, group, alias)
+}
+
 func (m Model) openSSH(hostName string) tea.Cmd {
 	cfg := m.engine.Config()
-	return runWithTitle("ssh "+hostName, func() error {
+	return runWithTitle(m.titleForHost("ssh", hostName), func() error {
 		client, cleanup, err := remote.DialByName(cfg, hostName)
 		if err != nil {
 			return err
@@ -632,7 +647,7 @@ func (m Model) openEditor() tea.Cmd {
 	c.Stderr = os.Stderr
 	title := "edit ssh config"
 	if alias != "" {
-		title = "edit " + alias
+		title = m.titleForHost("edit", alias)
 	}
 	eng := m.engine
 	return execWithTitle(title, c, func(err error) tea.Msg {

@@ -19,6 +19,21 @@ func TestSanitizeTermTitle(t *testing.T) {
 	}
 }
 
+func TestHostTermLabel(t *testing.T) {
+	if got := hostTermLabel("", "web-01"); got != "web-01" {
+		t.Fatalf("got %q", got)
+	}
+	if got := hostTermLabel("prod", "web-01"); got != "prod/web-01" {
+		t.Fatalf("got %q", got)
+	}
+	if got := hostActionTitle("ssh", "prod", "web-01"); got != "ssh prod/web-01" {
+		t.Fatalf("got %q", got)
+	}
+	if got := hostActionTitle("get", "", "db"); got != "get db" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func stringsContainsBELOrESC(s string) bool {
 	for _, r := range s {
 		if r == '\a' || r == '\x1b' {
