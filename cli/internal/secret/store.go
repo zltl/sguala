@@ -61,8 +61,9 @@ func keyringAccount(alias string) string {
 }
 
 type fileStore struct {
-	Version int               `json:"version"`
-	Hosts   map[string]string `json:"hosts"`
+	Version  int               `json:"version"`
+	Hosts    map[string]string `json:"hosts"`
+	Bindings map[string]string `json:"bindings,omitempty"` // alias → user@addr:port
 }
 
 func readFile() (fileStore, error) {
@@ -73,7 +74,7 @@ func readFile() (fileStore, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fileStore{Version: fileVersion, Hosts: map[string]string{}}, nil
+			return fileStore{Version: fileVersion, Hosts: map[string]string{}, Bindings: map[string]string{}}, nil
 		}
 		return fileStore{}, err
 	}
@@ -83,6 +84,9 @@ func readFile() (fileStore, error) {
 	}
 	if s.Hosts == nil {
 		s.Hosts = map[string]string{}
+	}
+	if s.Bindings == nil {
+		s.Bindings = map[string]string{}
 	}
 	if s.Version == 0 {
 		s.Version = fileVersion
@@ -101,6 +105,9 @@ func writeFile(s fileStore) error {
 	s.Version = fileVersion
 	if s.Hosts == nil {
 		s.Hosts = map[string]string{}
+	}
+	if s.Bindings == nil {
+		s.Bindings = map[string]string{}
 	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
@@ -122,25 +129,7 @@ func keyringOK() bool {
 func Get(alias string) (password string, backend Backend, err error) {
 	mu.Lock()
 	defer mu.Unlock()
-	alias = normalizeAlias(alias)
-	if alias == "" {
-		return "", BackendNone, fmt.Errorf("empty host alias")
-	}
-	if keyringOK() {
-		pw, kerr := keyring.Get(keyringService, keyringAccount(alias))
-		if kerr == nil && pw != "" {
-			return pw, BackendKeyring, nil
-		}
-		// ErrNotFound or unsupported backend → try file
-	}
-	s, ferr := readFile()
-	if ferr != nil {
-		return "", BackendNone, ferr
-	}
-	if pw, ok := s.Hosts[alias]; ok && pw != "" {
-		return pw, BackendFile, nil
-	}
-	return "", BackendNone, nil
+	return getLocked(alias)
 }
 
 // Set stores a password. Prefers OS keyring; if that fails, uses the fallback file.
@@ -148,34 +137,7 @@ func Get(alias string) (password string, backend Backend, err error) {
 func Set(alias, password string) (backend Backend, err error) {
 	mu.Lock()
 	defer mu.Unlock()
-	alias = normalizeAlias(alias)
-	if alias == "" {
-		return BackendNone, fmt.Errorf("empty host alias")
-	}
-	if password == "" {
-		return deleteLocked(alias)
-	}
-	if keyringOK() {
-		if kerr := keyring.Set(keyringService, keyringAccount(alias), password); kerr == nil {
-			// Drop plaintext file copy if present.
-			if s, ferr := readFile(); ferr == nil {
-				if _, ok := s.Hosts[alias]; ok {
-					delete(s.Hosts, alias)
-					_ = writeFile(s)
-				}
-			}
-			return BackendKeyring, nil
-		}
-	}
-	s, ferr := readFile()
-	if ferr != nil {
-		return BackendNone, ferr
-	}
-	s.Hosts[alias] = password
-	if err := writeFile(s); err != nil {
-		return BackendNone, err
-	}
-	return BackendFile, nil
+	return setLocked(alias, password)
 }
 
 // Delete removes a stored password from keyring and file.

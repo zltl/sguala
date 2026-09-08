@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/zltl/sguala/cli/internal/secret"
 	"github.com/zltl/sguala/cli/internal/sshconfig"
 	"gopkg.in/yaml.v3"
 )
@@ -170,6 +171,20 @@ func AttachSSHHosts(cfg *Config) error {
 	return nil
 }
 
+// ReconcileSecrets rebinds stored passwords when Host aliases were renamed
+// (matched by user@addr:port from the previous load).
+func ReconcileSecrets(cfg Config) []secret.RenameResult {
+	refs := make([]secret.HostRef, 0, len(cfg.Hosts))
+	for _, h := range cfg.Hosts {
+		refs = append(refs, secret.HostRef{Name: h.Name, User: h.User, Addr: h.Addr})
+	}
+	renamed, err := secret.Reconcile(refs)
+	if err != nil {
+		return nil
+	}
+	return renamed
+}
+
 // LoadRuntime loads settings YAML (optional) + hosts from ~/.ssh/config.
 func LoadRuntime(settingsPath string) (Config, string, error) {
 	cfg := Default()
@@ -186,6 +201,7 @@ func LoadRuntime(settingsPath string) (Config, string, error) {
 	if err := AttachSSHHosts(&cfg); err != nil {
 		return cfg, settingsPath, err
 	}
+	_ = ReconcileSecrets(cfg)
 	return cfg, settingsPath, nil
 }
 

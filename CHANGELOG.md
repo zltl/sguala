@@ -7,6 +7,11 @@
 - Same dial stack as metrics: IdentityFile, agent, stored password, ProxyJump
 - Removed `sguala rsync` (required system `ssh`)
 
+### Password rebind on Host rename
+- Stored passwords follow `Host` alias renames (matched by `user@addr:port` from the previous load)
+- Manual: `sguala passwd --rename <old> <new>`
+- Desktop: renaming a server moves the shared password entry
+
 ### Import / export bundle
 - CLI: `sguala export|import` (dir or `.zip`), `--keys` / `--secrets`; `export-ssh` / `import-ssh`
 - Desktop Settings: Export / Import Bundle (compatible format); legacy JSON kept

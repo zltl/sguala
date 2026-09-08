@@ -519,6 +519,11 @@ func (m Model) updatePasswd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			backend, err = secret.Delete(host)
 		} else {
 			backend, err = secret.Set(host, pw)
+			if err == nil {
+				if h, ok := m.engine.Config().HostByName(host); ok {
+					_ = secret.Bind(host, h.User, h.Addr)
+				}
+			}
 		}
 		m.endPasswd()
 		if err != nil {
@@ -653,6 +658,13 @@ func (m Model) openEditor() tea.Cmd {
 	return execWithTitle(title, c, func(err error) tea.Msg {
 		next := eng.Config()
 		if e := config.AttachSSHHosts(&next); e == nil {
+			if renamed := config.ReconcileSecrets(next); len(renamed) > 0 {
+				var parts []string
+				for _, r := range renamed {
+					parts = append(parts, r.From+"→"+r.To)
+				}
+				fmt.Fprintf(os.Stderr, "password rebinding: %s\n", strings.Join(parts, ", "))
+			}
 			eng.SetConfig(next)
 		}
 		return refreshDoneMsg{}

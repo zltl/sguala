@@ -106,9 +106,12 @@ OpenSSH config cannot store passwords. For password-only hosts:
 ```bash
 sguala passwd web-01
 sguala passwd --delete web-01
+sguala passwd --rename web-old web-new   # after renaming Host in ~/.ssh/config
 ```
 
 List metrics, interactive `o`, and `get`/`put`/`sftp` all use the stored password when key auth fails (same dial stack).
+
+When you rename a `Host` alias (same `User` + `HostName` + `Port`), sguala rebinds the stored password automatically on the next load (TUI `e` reload or restart). Bindings are recorded as `user@addr:port`. If auto-match is ambiguous, use `--rename`.
 
 Force file-only backend: `SGUALA_SECRET_FILE_ONLY=1`. Override file path: `SGUALA_PASSWORDS_FILE=/path/to.json`.
 
@@ -136,7 +139,7 @@ Legacy `hosts:` lists in this file are ignored.
 | `sguala get` | SFTP download (recursive) |
 | `sguala put` | SFTP upload (recursive) |
 | `sguala sftp` | Interactive SFTP shell |
-| `sguala passwd` | Store / delete Host password (keyring or file) |
+| `sguala passwd` | Store / delete / `--rename` Host password (keyring or file) |
 | `sguala export` | Export sguala-bundle (dir or `.zip`) |
 | `sguala import` | Import bundle into `~/.ssh/config` |
 | `sguala export-ssh` | Write OpenSSH config fragment |

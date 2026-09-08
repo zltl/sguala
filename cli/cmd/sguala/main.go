@@ -131,6 +131,14 @@ func main() {
 		Short: "Store SSH password for a Host alias (OS keyring, else chmod 0600 file)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			renameFrom, _ := cmd.Flags().GetString("rename")
+			if renameFrom != "" {
+				if err := secret.Rename(renameFrom, args[0]); err != nil {
+					return err
+				}
+				fmt.Printf("renamed password %s → %s\n", renameFrom, args[0])
+				return nil
+			}
 			alias := args[0]
 			del, _ := cmd.Flags().GetBool("delete")
 			if del {
@@ -156,6 +164,11 @@ func main() {
 			if err != nil {
 				return err
 			}
+			if cfg, _, lerr := loadRuntime(); lerr == nil {
+				if h, ok := cfg.HostByName(alias); ok {
+					_ = secret.Bind(alias, h.User, h.Addr)
+				}
+			}
 			kr, file := secret.Status()
 			fmt.Printf("saved via %s\n", b)
 			if b == secret.BackendFile {
@@ -167,6 +180,7 @@ func main() {
 		},
 	}
 	passwdCmd.Flags().Bool("delete", false, "remove stored password")
+	passwdCmd.Flags().String("rename", "", "move stored password from this old alias to <alias>")
 
 	exportCmd := &cobra.Command{
 		Use:   "export <path>",

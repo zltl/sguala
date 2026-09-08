@@ -93,6 +93,22 @@ export async function deleteHostPassword(alias: string): Promise<void> {
   await setHostPassword(alias, '');
 }
 
+/** Move a stored password when the server display/alias name changes. */
+export async function renameHostPassword(oldAlias: string, newAlias: string): Promise<void> {
+  const from = (oldAlias || '').trim();
+  const to = (newAlias || '').trim();
+  if (!from || !to || from === to) return;
+  const store = await readStore();
+  const pw = store.hosts[from];
+  if (!pw) return;
+  if (store.hosts[to] && store.hosts[to] !== pw) {
+    throw new Error(`password already stored for ${to}`);
+  }
+  store.hosts[to] = pw;
+  delete store.hosts[from];
+  await writeStore(store);
+}
+
 /** Resolve password for a server: shared file by name, else legacy JSON field. */
 export async function resolveServerPassword(server: {
   name?: string;

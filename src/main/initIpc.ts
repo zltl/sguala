@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { emptyServerStat, ServerStat, SshRemote } from "./sshRemote";
-import { migratePasswordOutOfServer, deleteHostPassword } from "./hostSecrets";
+import { migratePasswordOutOfServer, deleteHostPassword, renameHostPassword } from "./hostSecrets";
 import { exportBundleDialog, importBundleDialog } from "./sgualaBundle";
 import { loadSshConfigHosts } from "./sshConfig";
 
@@ -133,14 +133,23 @@ export function initIpc() {
       // update server: delete first, then add
       // note that the server uuid is not changed, so we can find it by uuid
       // server may be moved to another group, so we need to delete it from the old group
+      let oldName = '';
       for (const g of c.groups) {
         const index = g.servers.findIndex(gs => gs.uuid === s.uuid);
         if (index >= 0) {
+          oldName = g.servers[index]?.name || '';
           g.servers.splice(index, 1);
           break;
         }
       }
       const server = s as Server;
+      if (oldName && server.name && oldName !== server.name) {
+        try {
+          await renameHostPassword(oldName, server.name);
+        } catch (e) {
+          console.log('renameHostPassword failed', e);
+        }
+      }
       g.servers.push(server);
       console.log('server update ok: ', server.name);
     }
