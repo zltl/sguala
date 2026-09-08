@@ -72,3 +72,24 @@ func (t *titledCmd) SetStderr(w io.Writer) {
 func execWithTitle(title string, c *exec.Cmd, fn tea.ExecCallback) tea.Cmd {
 	return tea.Exec(&titledCmd{cmd: c, title: title}, fn)
 }
+
+// runWithTitle runs a Go function after the TUI releases the terminal (pure SSH/SFTP).
+type funcCmd struct {
+	title string
+	fn    func() error
+}
+
+func (f *funcCmd) Run() error {
+	setTerminalTitle(f.title)
+	err := f.fn()
+	setTerminalTitle(defaultTermTitle)
+	return err
+}
+
+func (f *funcCmd) SetStdin(io.Reader)  {}
+func (f *funcCmd) SetStdout(io.Writer) {}
+func (f *funcCmd) SetStderr(io.Writer) {}
+
+func runWithTitle(title string, fn func() error, cb tea.ExecCallback) tea.Cmd {
+	return tea.Exec(&funcCmd{title: title, fn: fn}, cb)
+}

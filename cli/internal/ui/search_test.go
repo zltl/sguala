@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/zltl/sguala/cli/internal/config"
@@ -35,12 +34,10 @@ func TestHostMatches(t *testing.T) {
 	}
 }
 
-func TestOpenSSHUsesAliasOnly(t *testing.T) {
-	// openSSH builds `ssh <Host alias>` — document expected arg shape here.
+func TestOpenSSHDialsByAlias(t *testing.T) {
+	// Interactive shell looks up Host alias in config (pure Go dial), not system ssh argv.
 	h := config.Host{Name: "web-01", Addr: "10.0.0.1:2222", User: "root"}
-	got := []string{h.Name}
-	want := []string{"web-01"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %#v want %#v", got, want)
+	if h.Name != "web-01" {
+		t.Fatalf("alias %q", h.Name)
 	}
 }

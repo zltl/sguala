@@ -2,6 +2,11 @@
 
 ## [2.1.1] - unreleased
 
+### Pure Go SSH / SFTP
+- Interactive `o`, `get` / `put` / `sftp`, and TUI `t` no longer shell out to OpenSSH
+- Same dial stack as metrics: IdentityFile, agent, stored password, ProxyJump
+- Removed `sguala rsync` (required system `ssh`)
+
 ### Import / export bundle
 - CLI: `sguala export|import` (dir or `.zip`), `--keys` / `--secrets`; `export-ssh` / `import-ssh`
 - Desktop Settings: Export / Import Bundle (compatible format); legacy JSON kept

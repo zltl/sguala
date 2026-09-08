@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/engine"
 	"github.com/zltl/sguala/cli/internal/metric"
+	"github.com/zltl/sguala/cli/internal/remote"
 	"github.com/zltl/sguala/cli/internal/secret"
 	"github.com/zltl/sguala/cli/internal/sshconfig"
 	"github.com/zltl/sguala/cli/internal/xfer"
@@ -115,7 +115,7 @@ const (
 	xferPutRemote
 )
 
-var xferMenuItems = []string{"get (scp download)", "put (scp upload)", "sftp (interactive)"}
+var xferMenuItems = []string{"get (download)", "put (upload)", "sftp (interactive)"}
 
 type Model struct {
 	engine       *engine.Engine
@@ -372,7 +372,14 @@ func (m Model) updateTransfer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case 2: // sftp
 				host := m.xferHost
 				m.endTransfer()
-				return m, m.runTool("sftp", xfer.SFTPArgs(host), "sftp "+host)
+				return m, m.runRemote("sftp "+host, func(cfg config.Config) error {
+					client, cleanup, err := remote.DialByName(cfg, host)
+					if err != nil {
+						return err
+					}
+					defer cleanup()
+					return remote.InteractiveSFTP(client)
+				})
 			}
 		}
 		return m, nil
@@ -412,9 +419,16 @@ func (m Model) submitXferPrompt() (tea.Model, tea.Cmd) {
 		if val == "" {
 			val = "."
 		}
-		host, remote := m.xferHost, m.xferRemote
+		host, remotePath, local := m.xferHost, m.xferRemote, val
 		m.endTransfer()
-		return m, m.runTool("scp", xfer.SCPGetArgs(host, remote, val, nil), "scp "+host)
+		return m, m.runRemote("get "+host, func(cfg config.Config) error {
+			client, cleanup, err := remote.DialByName(cfg, host)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			return remote.Get(client, remotePath, local)
+		})
 	case xferPutLocal:
 		locals := xfer.SplitLocalPaths(val)
 		if len(locals) == 0 {
@@ -432,31 +446,29 @@ func (m Model) submitXferPrompt() (tea.Model, tea.Cmd) {
 		if val == "" {
 			val = "."
 		}
-		host, locals := m.xferHost, m.xferLocals
-		args, err := xfer.SCPPutArgs(host, locals, val, nil)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
+		host, locals, remoteDir := m.xferHost, m.xferLocals, val
 		m.endTransfer()
-		return m, m.runTool("scp", args, "scp "+host)
+		return m, m.runRemote("put "+host, func(cfg config.Config) error {
+			client, cleanup, err := remote.DialByName(cfg, host)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			return remote.Put(client, locals, remoteDir)
+		})
 	default:
 		return m, nil
 	}
 }
 
-func (m Model) runTool(name string, args []string, title string) tea.Cmd {
-	if err := xfer.RequireTool(name); err != nil {
-		return func() tea.Msg { return refreshDoneMsg{} }
-	}
-	c := exec.Command(name, args...)
-	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	if title == "" {
-		title = name
-	}
-	return execWithTitle(title, c, func(err error) tea.Msg {
+func (m Model) runRemote(title string, fn func(config.Config) error) tea.Cmd {
+	cfg := m.engine.Config()
+	return runWithTitle(title, func() error {
+		return fn(cfg)
+	}, func(err error) tea.Msg {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
 		return refreshDoneMsg{}
 	})
 }
@@ -577,13 +589,17 @@ func sortSnapshots(rows []metric.Snapshot, mode sortMode) {
 }
 
 func (m Model) openSSH(hostName string) tea.Cmd {
-	// Delegate to system ssh so ~/.ssh/config (ProxyJump, IdentityFile, etc.) applies.
-	c := exec.Command("ssh", hostName)
-	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	return execWithTitle("ssh "+hostName, c, func(err error) tea.Msg {
+	cfg := m.engine.Config()
+	return runWithTitle("ssh "+hostName, func() error {
+		client, cleanup, err := remote.DialByName(cfg, hostName)
 		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return remote.Shell(client)
+	}, func(err error) tea.Msg {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ssh: %v\n", err)
 			return snapMsg{}
 		}
 		return refreshDoneMsg{}
@@ -725,7 +741,7 @@ func (m Model) viewTransfer() string {
 			b.WriteByte('\n')
 		}
 	case xferGetRemote:
-		b.WriteString("Download (scp get)\n")
+		b.WriteString("Download (SFTP get)\n")
 		b.WriteString(mutedStyle.Render("remote path:"))
 		b.WriteByte('\n')
 		b.WriteString(m.xferInput.View())
@@ -737,7 +753,7 @@ func (m Model) viewTransfer() string {
 		b.WriteString(m.xferInput.View())
 		b.WriteByte('\n')
 	case xferPutLocal:
-		b.WriteString("Upload (scp put)\n")
+		b.WriteString("Upload (SFTP put)\n")
 		b.WriteString(mutedStyle.Render("local path(s):"))
 		b.WriteByte('\n')
 		b.WriteString(m.xferInput.View())

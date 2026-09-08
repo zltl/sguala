@@ -13,9 +13,9 @@ import (
 	"github.com/zltl/sguala/cli/internal/bundle"
 	"github.com/zltl/sguala/cli/internal/config"
 	"github.com/zltl/sguala/cli/internal/engine"
+	"github.com/zltl/sguala/cli/internal/remote"
 	"github.com/zltl/sguala/cli/internal/secret"
 	"github.com/zltl/sguala/cli/internal/ui"
-	"github.com/zltl/sguala/cli/internal/xfer"
 	"golang.org/x/term"
 )
 
@@ -67,55 +67,62 @@ func main() {
 
 	getCmd := &cobra.Command{
 		Use:   "get <alias> <remote> [local]",
-		Short: "Download via system scp -r (OpenSSH config applies)",
+		Short: "Download via pure-Go SFTP (ProxyJump / Identity / stored password)",
 		Args:  cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			local := "."
 			if len(args) >= 3 {
 				local = args[2]
 			}
-			extra, _ := cmd.Flags().GetStringArray("scp-arg")
-			return xfer.Run("scp", xfer.SCPGetArgs(args[0], args[1], local, extra))
-		},
-	}
-	getCmd.Flags().StringArray("scp-arg", nil, "extra arg passed to scp (repeatable)")
-
-	putCmd := &cobra.Command{
-		Use:   "put <alias> <local...> <remote>",
-		Short: "Upload via system scp -r (OpenSSH config applies)",
-		Args:  cobra.MinimumNArgs(3),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			alias := args[0]
-			remote := args[len(args)-1]
-			locals := args[1 : len(args)-1]
-			extra, _ := cmd.Flags().GetStringArray("scp-arg")
-			scpArgs, err := xfer.SCPPutArgs(alias, locals, remote, extra)
+			cfg, _, err := loadRuntime()
 			if err != nil {
 				return err
 			}
-			return xfer.Run("scp", scpArgs)
+			client, cleanup, err := remote.DialByName(cfg, args[0])
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			return remote.Get(client, args[1], local)
 		},
 	}
-	putCmd.Flags().StringArray("scp-arg", nil, "extra arg passed to scp (repeatable)")
+
+	putCmd := &cobra.Command{
+		Use:   "put <alias> <local...> <remote>",
+		Short: "Upload via pure-Go SFTP (ProxyJump / Identity / stored password)",
+		Args:  cobra.MinimumNArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			alias := args[0]
+			remoteDir := args[len(args)-1]
+			locals := args[1 : len(args)-1]
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
+			}
+			client, cleanup, err := remote.DialByName(cfg, alias)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			return remote.Put(client, locals, remoteDir)
+		},
+	}
 
 	sftpCmd := &cobra.Command{
 		Use:   "sftp <alias>",
-		Short: "Interactive system sftp to Host alias",
+		Short: "Interactive pure-Go SFTP to Host alias",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return xfer.Run("sftp", xfer.SFTPArgs(args[0]))
-		},
-	}
-
-	rsyncCmd := &cobra.Command{
-		Use:   "rsync -- [rsync-args...]",
-		Short: "Run system rsync with -e ssh (use alias:path like OpenSSH)",
-		Args:  cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("usage: sguala rsync -- -avz ./local alias:remote/")
+			cfg, _, err := loadRuntime()
+			if err != nil {
+				return err
 			}
-			return xfer.Run("rsync", xfer.RsyncArgs(args))
+			client, cleanup, err := remote.DialByName(cfg, args[0])
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			return remote.InteractiveSFTP(client)
 		},
 	}
 
@@ -267,7 +274,7 @@ func main() {
 		},
 	}
 
-	root.AddCommand(checkCmd, versionCmd, initCmd, getCmd, putCmd, sftpCmd, rsyncCmd, passwdCmd,
+	root.AddCommand(checkCmd, versionCmd, initCmd, getCmd, putCmd, sftpCmd, passwdCmd,
 		exportCmd, importCmd, exportSSHCmd, importSSHCmd)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

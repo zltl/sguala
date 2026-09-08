@@ -38,8 +38,8 @@ make -C cli build
 Highlights:
 
 - Live metrics table; `/` search; groups from `# section` comments in SSH config
-- `o` open system `ssh`; `e` edit config at the selected Host; `t` transfer; `p` password store
-- `sguala get|put|sftp|rsync` via system OpenSSH / rsync (ProxyJump etc. work)
+- `o` open interactive SSH (pure Go); `e` edit config at the selected Host; `t` transfer; `p` password store
+- `sguala get|put|sftp` via pure-Go SFTP (ProxyJump / Identity / stored password)
 - Terminal title set on connect (`ssh web-01`, …)
 
 Full reference: **[cli/README.md](./cli/README.md)**.

@@ -2,14 +2,14 @@
 
 sguala-cli is an **agentless** Linux host monitor with a terminal UI. It reads hosts from your **`~/.ssh/config`**, SSHes into them, scrapes CPU / memory / disk / load, and shows a live table.
 
-It is a thin wrap around OpenSSH config — add or change hosts with `ssh` the way you already do; press `e` in the TUI to edit that file. File transfer uses system `scp` / `sftp` / `rsync` so ProxyJump and the rest of OpenSSH apply.
+It is a thin wrap around OpenSSH **config** — hosts still come from `~/.ssh/config`; press `e` in the TUI to edit that file. Interactive shell and file transfer use **pure Go** (`golang.org/x/crypto/ssh` + SFTP): IdentityFile, ssh-agent, ProxyJump, and stored passwords — no system `ssh`/`scp`/`sftp` binary required.
 
 ## Requirements
 
 - Go 1.22+
-- OpenSSH client (`ssh`, `scp`, `sftp`) on PATH
-- Optional: `rsync` for `sguala rsync`
-- Keys / `ssh-agent` as configured in `~/.ssh/config`
+- Keys / `ssh-agent` as configured in `~/.ssh/config` (or stored password via `passwd`)
+
+**Not supported** (same as metrics dial): `ProxyCommand`, SOCKS, and other OpenSSH features beyond HostName / User / Port / IdentityFile / ProxyJump.
 
 ## Quick start
 
@@ -48,11 +48,11 @@ Host web-stg
 
 Indented comments inside a Host block are ignored for grouping. Disabled-looking lines like `# Host old` are not groups.
 
-`o` runs `ssh <alias>` so OpenSSH applies the rest of your config.
+`o` opens an interactive shell over the same pure-Go dial path as metrics (alias lookup → Identity / agent / password → ProxyJump).
 
 ## File transfer
 
-All transfers shell out to OpenSSH / rsync (same config as interactive `ssh`):
+Transfers use in-process SFTP (recursive get/put):
 
 ```bash
 # download remote → local (default local=.)
@@ -65,9 +65,6 @@ sguala put web-01 ./a ./b /var/www/
 
 # interactive sftp
 sguala sftp web-01
-
-# rsync (injects -e ssh unless you pass -e yourself)
-sguala rsync -- -avz ./dist/ web-01:/var/www/app/
 ```
 
 In the TUI, select a host and press `t` for get / put / sftp.
@@ -111,7 +108,7 @@ sguala passwd web-01
 sguala passwd --delete web-01
 ```
 
-List metrics (`sshx`) and jump hosts read this store automatically. Interactive `o` / `scp` / `sftp` still use system OpenSSH (TTY prompt); they do not inject the stored password.
+List metrics, interactive `o`, and `get`/`put`/`sftp` all use the stored password when key auth fails (same dial stack).
 
 Force file-only backend: `SGUALA_SECRET_FILE_ONLY=1`. Override file path: `SGUALA_PASSWORDS_FILE=/path/to.json`.
 
@@ -136,10 +133,9 @@ Legacy `hosts:` lists in this file are ignored.
 |---------|-------------|
 | `sguala` | Open TUI (default) |
 | `sguala check` | One-shot JSON metrics |
-| `sguala get` | `scp -r` download |
-| `sguala put` | `scp -r` upload |
-| `sguala sftp` | Interactive `sftp` |
-| `sguala rsync` | `rsync -e ssh …` |
+| `sguala get` | SFTP download (recursive) |
+| `sguala put` | SFTP upload (recursive) |
+| `sguala sftp` | Interactive SFTP shell |
 | `sguala passwd` | Store / delete Host password (keyring or file) |
 | `sguala export` | Export sguala-bundle (dir or `.zip`) |
 | `sguala import` | Import bundle into `~/.ssh/config` |
@@ -158,14 +154,14 @@ Legacy `hosts:` lists in this file are ignored.
 | `r` | Refresh now |
 | `/` | Search hosts (name / group / user / addr) |
 | `s` | Cycle sort (config/cpu/mem/disk/lat) |
-| `o` | Open system `ssh` to selected Host alias |
-| `t` | Transfer (get / put / sftp) via system tools |
+| `o` | Open interactive SSH (pure Go) to selected Host alias |
+| `t` | Transfer (get / put / sftp) via pure-Go SFTP |
 | `p` | Set / clear stored password for selected Host |
 | `e` | Edit selected Host in `$EDITOR` (jumps to that entry; Include files supported), then reload |
 | `?` | Help |
 | `q` | Quit |
 
-Terminal emulators that support OSC titles show `ssh <alias>` / `scp <alias>` / `sftp <alias>` while a session is open, then restore `sguala`.
+Terminal emulators that support OSC titles show `ssh <alias>` / `get <alias>` / `sftp <alias>` while a session is open, then restore `sguala`.
 
 ## Relation to the Electron app
 
@@ -173,7 +169,7 @@ Terminal emulators that support OSC titles show `ssh <alias>` / `scp <alias>` / 
 |--|------------------|--------------|
 | UI | Electron + React | Bubble Tea TUI |
 | Hosts | App JSON (`sguala_2.json`) | `~/.ssh/config` |
-| Transfer | In-app SFTP (`ssh2`) | System `scp`/`sftp`/`rsync` |
+| Transfer | In-app SFTP (`ssh2`) | Pure Go SFTP |
 | Build | `npm start` / forge | `make -C cli build` |
 
 ## Develop
