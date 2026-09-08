@@ -230,15 +230,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searching = false
 				m.search.Blur()
 				m.query = strings.TrimSpace(m.search.Value())
-				m.cursor = 0
 				m.rebuildRows()
 				return m, nil
+			case "up", "ctrl+p":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+				return m, nil
+			case "down", "ctrl+n":
+				if m.cursor < len(m.rows)-1 {
+					m.cursor++
+				}
+				return m, nil
 			}
+			prev := m.query
 			var cmd tea.Cmd
 			m.search, cmd = m.search.Update(msg)
 			m.query = m.search.Value()
-			m.cursor = 0
 			m.rebuildRows()
+			if m.query != prev {
+				m.cursor = 0
+				if m.cursor >= len(m.rows) && len(m.rows) > 0 {
+					m.cursor = len(m.rows) - 1
+				}
+			} else if m.cursor >= len(m.rows) {
+				if len(m.rows) == 0 {
+					m.cursor = 0
+				} else {
+					m.cursor = len(m.rows) - 1
+				}
+			}
 			return m, cmd
 		}
 
@@ -727,7 +748,7 @@ func (m Model) View() string {
 
 	b.WriteByte('\n')
 	if m.searching {
-		b.WriteString(helpStyle.Render("enter confirm · esc clear"))
+		b.WriteString(helpStyle.Render("↑/↓ select · enter confirm · esc clear"))
 	} else if m.mode == viewTransfer || m.mode == viewPasswd {
 		b.WriteString(helpStyle.Render("enter confirm · esc back"))
 	} else {

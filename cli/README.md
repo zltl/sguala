@@ -155,7 +155,7 @@ Legacy `hosts:` lists in this file are ignored.
 | `Enter` | Host detail |
 | `Esc` | Back / clear search |
 | `r` | Refresh now |
-| `/` | Search hosts (name / group / user / addr) |
+| `/` | Search hosts (name / group / user / addr); ↑/↓ select hits, Enter keep filter |
 | `s` | Cycle sort (config/cpu/mem/disk/lat) |
 | `o` | Open interactive SSH (pure Go) to selected Host alias |
 | `t` | Transfer (get / put / sftp) via pure-Go SFTP |
