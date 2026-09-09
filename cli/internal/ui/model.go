@@ -146,6 +146,9 @@ type Model struct {
 
 	rows []metric.Snapshot // filtered+sorted view
 	err  string
+
+	// listOffset is the first visible data-line index in the overview viewport.
+	listOffset int
 }
 
 func New(eng *engine.Engine, settingsPath string) Model {
@@ -236,11 +239,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor > 0 {
 					m.cursor--
 				}
+				m.syncListOffset()
 				return m, nil
 			case "down", "ctrl+n":
 				if m.cursor < len(m.rows)-1 {
 					m.cursor++
 				}
+				m.syncListOffset()
 				return m, nil
 			}
 			prev := m.query
@@ -319,11 +324,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor > 0 {
 				m.cursor--
 			}
+			m.syncListOffset()
 			return m, nil
 		case key.Matches(msg, m.keys.Down):
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
+			m.syncListOffset()
 			return m, nil
 		case key.Matches(msg, m.keys.SSH):
 			if len(m.rows) == 0 {
@@ -593,6 +600,7 @@ func (m *Model) rebuildRows() {
 	if len(m.rows) == 0 {
 		m.cursor = 0
 	}
+	m.syncListOffset()
 }
 
 func sortSnapshots(rows []metric.Snapshot, mode sortMode) {
@@ -836,6 +844,44 @@ func (m Model) viewOverview() string {
 		return b.String()
 	}
 
+	lines := m.buildOverviewLines(cfg, groupW, hostW, addrW)
+	avail := m.overviewScrollHeight()
+	cursorLine := 0
+	for i, ln := range lines {
+		if ln.rowIndex == m.cursor {
+			cursorLine = i
+			break
+		}
+	}
+	start := clampListOffset(m.listOffset, cursorLine, len(lines), avail)
+	// Persist clamped offset for stable scrolling on the next keypress.
+	// View is a value receiver — callers sync via syncListOffset in Update.
+	end := start + avail
+	if end > len(lines) {
+		end = len(lines)
+	}
+	if start > 0 {
+		b.WriteString(mutedStyle.Render(fmt.Sprintf("  ↑ %d more", start)))
+		b.WriteByte('\n')
+	}
+	for _, ln := range lines[start:end] {
+		b.WriteString(ln.text)
+		b.WriteByte('\n')
+	}
+	if below := len(lines) - end; below > 0 {
+		b.WriteString(mutedStyle.Render(fmt.Sprintf("  ↓ %d more", below)))
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+type overviewLine struct {
+	text     string
+	rowIndex int // host row index, or -1 for group separators
+}
+
+func (m Model) buildOverviewLines(cfg config.Config, groupW, hostW, addrW int) []overviewLine {
+	lines := make([]overviewLine, 0, len(m.rows)+4)
 	for i, s := range m.rows {
 		if m.sort == sortConfig {
 			g := hostGroup(cfg, s)
@@ -846,8 +892,10 @@ func (m Model) viewOverview() string {
 			if g != "" && g != prev {
 				label := "── " + g + " "
 				pad := max(0, m.width-1-runewidth.StringWidth(label))
-				b.WriteString(mutedStyle.Render(label + strings.Repeat("─", pad)))
-				b.WriteByte('\n')
+				lines = append(lines, overviewLine{
+					text:     mutedStyle.Render(label + strings.Repeat("─", pad)),
+					rowIndex: -1,
+				})
 			}
 		}
 		line := formatRow(cfg, s, groupW, hostW, addrW)
@@ -858,10 +906,76 @@ func (m Model) viewOverview() string {
 		} else if isHighUsage(s) {
 			line = warnStyle.Render(line)
 		}
-		b.WriteString(line)
-		b.WriteByte('\n')
+		lines = append(lines, overviewLine{text: line, rowIndex: i})
 	}
-	return b.String()
+	return lines
+}
+
+// overviewScrollHeight is how many data lines fit under the chrome + column header.
+func (m Model) overviewScrollHeight() int {
+	used := 1 // title
+	if m.err != "" && m.mode != viewPasswd && m.mode != viewTransfer {
+		used++
+	}
+	if m.searching {
+		used++
+	}
+	used++ // separator
+	used++ // column header
+	used++ // blank before help
+	used++ // help
+	if m.showHelp {
+		used += 8
+	}
+	// Reserve space for optional ↑/↓ more indicators.
+	used += 2
+	h := m.height - used
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// clampListOffset keeps cursorLine visible within [offset, offset+avail).
+func clampListOffset(offset, cursorLine, n, avail int) int {
+	if avail <= 0 {
+		avail = 1
+	}
+	if n <= avail {
+		return 0
+	}
+	if cursorLine < offset {
+		offset = cursorLine
+	}
+	if cursorLine >= offset+avail {
+		offset = cursorLine - avail + 1
+	}
+	maxOff := n - avail
+	if offset > maxOff {
+		offset = maxOff
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return offset
+}
+
+func (m *Model) syncListOffset() {
+	if m.engine == nil || m.height <= 0 {
+		m.listOffset = 0
+		return
+	}
+	cfg := m.engine.Config()
+	groupW, hostW, addrW := m.overviewColWidths(cfg)
+	lines := m.buildOverviewLines(cfg, groupW, hostW, addrW)
+	cursorLine := 0
+	for i, ln := range lines {
+		if ln.rowIndex == m.cursor {
+			cursorLine = i
+			break
+		}
+	}
+	m.listOffset = clampListOffset(m.listOffset, cursorLine, len(lines), m.overviewScrollHeight())
 }
 
 // overviewColWidths sizes GROUP/HOST/ADDR from terminal width and visible content.

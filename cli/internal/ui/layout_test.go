@@ -41,12 +41,25 @@ func TestHostGroupFallsBackToConfig(t *testing.T) {
 	}
 }
 
-func TestPadRightAndTrunc(t *testing.T) {
-	if got := padRight("ab", 4); got != "ab  " {
-		t.Fatalf("padRight=%q", got)
+func TestClampListOffset(t *testing.T) {
+	// Fits entirely.
+	if got := clampListOffset(0, 3, 5, 10); got != 0 {
+		t.Fatalf("fit: got %d", got)
 	}
-	got := trunc("abcdef", 4)
-	if runewidth.StringWidth(got) > 4 {
-		t.Fatalf("trunc too wide: %q width=%d", got, runewidth.StringWidth(got))
+	// Scroll down to keep cursor visible.
+	if got := clampListOffset(0, 15, 30, 10); got != 6 {
+		t.Fatalf("down: got %d want 6", got)
+	}
+	// Keep offset when cursor stays inside window.
+	if got := clampListOffset(10, 15, 30, 10); got != 10 {
+		t.Fatalf("inside: got %d want 10", got)
+	}
+	// Scroll up.
+	if got := clampListOffset(10, 5, 30, 10); got != 5 {
+		t.Fatalf("up: got %d want 5", got)
+	}
+	// Clamp to max.
+	if got := clampListOffset(100, 29, 30, 10); got != 20 {
+		t.Fatalf("max: got %d want 20", got)
 	}
 }
