@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/mattn/go-runewidth"
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/metric"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/metric"
 )
 
 func TestOverviewColWidthsFitsContent(t *testing.T) {

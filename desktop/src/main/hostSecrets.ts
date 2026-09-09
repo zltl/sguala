@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 /**
- * Shared with CLI (`cli/internal/secret`): passwords for password-auth hosts.
+ * Shared with CLI (`internal/secret`): passwords for password-auth hosts.
  * Prefer not to keep plaintext in sguala_2.json.
  *
  * File: <UserConfigDir>/sguala/host_passwords.json (mode 0600)

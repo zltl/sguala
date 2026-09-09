@@ -1,6 +1,6 @@
-# sguala-cli
+# sguala CLI
 
-sguala-cli is an **agentless** Linux host monitor with a terminal UI. It reads hosts from your **`~/.ssh/config`**, SSHes into them, scrapes CPU / memory / disk / load, and shows a live table.
+sguala is an **agentless** Linux host monitor with a terminal UI. It reads hosts from your **`~/.ssh/config`**, SSHes into them, scrapes CPU / memory / disk / load, and shows a live table.
 
 It is a thin wrap around OpenSSH **config** — hosts still come from `~/.ssh/config`; press `e` in the TUI to edit that file. Interactive shell and file transfer use **pure Go** (`golang.org/x/crypto/ssh` + SFTP): IdentityFile, ssh-agent, ProxyJump, and stored passwords — no system `ssh`/`scp`/`sftp` binary required.
 
@@ -14,7 +14,7 @@ It is a thin wrap around OpenSSH **config** — hosts still come from `~/.ssh/co
 ## Quick start
 
 ```bash
-cd cli
+# from repo root
 make tidy
 make build
 # ensure ~/.ssh/config has Host entries, then:
@@ -168,12 +168,12 @@ Terminal emulators that support OSC titles show `ssh group/alias` (or `ssh alias
 
 ## Relation to the Electron app
 
-| | Desktop (`src/`) | CLI (`cli/`) |
-|--|------------------|--------------|
+| | Desktop (`desktop/`) | CLI (repo root) |
+|--|---------------------|-----------------|
 | UI | Electron + React | Bubble Tea TUI |
 | Hosts | App JSON (`sguala_2.json`) | `~/.ssh/config` |
 | Transfer | In-app SFTP (`ssh2`) | Pure Go SFTP |
-| Build | `npm start` / forge | `make -C cli build` |
+| Build | `cd desktop && npm start` | `make build` |
 
 ## Develop
 

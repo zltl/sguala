@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/sshconfig"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/sshconfig"
 	"gopkg.in/yaml.v3"
 )
 

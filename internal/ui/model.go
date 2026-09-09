@@ -14,13 +14,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/engine"
-	"github.com/zltl/sguala/cli/internal/metric"
-	"github.com/zltl/sguala/cli/internal/remote"
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/sshconfig"
-	"github.com/zltl/sguala/cli/internal/xfer"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/engine"
+	"github.com/zltl/sguala/internal/metric"
+	"github.com/zltl/sguala/internal/remote"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/sshconfig"
+	"github.com/zltl/sguala/internal/xfer"
 )
 
 type tickMsg time.Time

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/sshx"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/sshx"
 	"golang.org/x/crypto/ssh"
 )
 

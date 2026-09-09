@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/sshconfig"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/sshconfig"
 )
 
 // ExportFromCLI builds a bundle from ~/.ssh/config (+ optional secrets/keys).

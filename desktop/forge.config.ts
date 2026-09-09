@@ -15,7 +15,7 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({
-    iconUrl: 'https://raw.githubusercontent.com/zltl/sguala/main/src/icon.ico',
+    iconUrl: 'https://raw.githubusercontent.com/zltl/sguala/main/desktop/src/icon.ico',
     setupIcon: path.resolve(__dirname, 'src/icon.ico'),
   }), new MakerZIP({}, ['darwin']), new MakerRpm({
     options: {

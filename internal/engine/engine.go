@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/metric"
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/sshx"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/metric"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/sshx"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -84,6 +84,11 @@ func (e *Engine) Snapshot(name string) (metric.Snapshot, bool) {
 	defer e.mu.RUnlock()
 	s, ok := e.snaps[name]
 	return s, ok
+}
+
+// PutSnapshot stores a host snapshot (tests / demo generators).
+func (e *Engine) PutSnapshot(s metric.Snapshot) {
+	e.store(s)
 }
 
 func (e *Engine) store(s metric.Snapshot) {

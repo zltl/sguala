@@ -2,7 +2,7 @@
   "name": "sguala",
   "productName": "sguala",
   "version": "2.1.0",
-  "description": "Agentless Linux server monitor (Electron + CLI)",
+  "description": "Agentless Linux server monitor (Electron desktop; CLI is primary at repo root)",
   "main": ".webpack/main",
   "scripts": {
     "test": "electron-forge start -- --test",
@@ -10,9 +10,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx .",
-    "cli:build": "make -C cli build",
-    "cli:test": "make -C cli test"
+    "lint": "eslint --ext .ts,.tsx ."
   },
   "keywords": [],
   "author": {

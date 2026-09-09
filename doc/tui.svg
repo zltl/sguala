@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="384" viewBox="0 0 832 384">
+  <rect width="100%" height="100%" rx="8" fill="#0d1117"/>
+  <style>
+    .frame {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      fill: #c9d1d9;
+      white-space: pre;
+      opacity: 0;
+      animation: blink 7.2s infinite;
+    }
+    .f0 { animation-delay: 0.0s; }
+    .f1 { animation-delay: 1.2s; }
+    .f2 { animation-delay: 2.4s; }
+    .f3 { animation-delay: 3.6s; }
+    .f4 { animation-delay: 4.8s; }
+    .f5 { animation-delay: 6.0s; }
+    @keyframes blink {
+      0%, 15.00% { opacity: 1; }
+      15.01%, 100% { opacity: 0; }
+    }
+  </style>
+  <text class="frame f0" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">GROUP      HOST      ADDR                    ST    CPU            MEM           DISK   LOAD    LAT</tspan>
+    <tspan x="16" dy="16">── production ─────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">production web-01    deploy@10.0.0.11:22     ●  12.4%      43% 16.0G          61% /   0.42   48ms</tspan>
+    <tspan x="16" dy="16">production web-02    deploy@10.0.0.12:22     ●   8.1%      38% 16.0G          56% /   0.31   52ms</tspan>
+    <tspan x="16" dy="16">production db-01     ops@10.0.0.21:22        ●  64.7%      78% 16.0G          82% /   2.10   61ms</tspan>
+    <tspan x="16" dy="16">── edge ───────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">edge       bastion   jump@bastion.example:22 ●   3.2%      22% 16.0G          41% /   0.05   28ms</tspan>
+    <tspan x="16" dy="16">edge       ci-runner ci@ci.example:22        ●  41.0%      55% 16.0G          70% /   1.20   90ms</tspan>
+    <tspan x="16" dy="16">── lab ────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">lab        old-box   lab@192.168.9.9:22      ○      —              —              —      —      —</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">k/↑ up • j/↓ down • enter detail • / search • o open ssh • t transfer • p set password • ? help …</tspan>
+  </text>
+  <text class="frame f1" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">GROUP      HOST      ADDR                    ST    CPU            MEM           DISK   LOAD    LAT</tspan>
+    <tspan x="16" dy="16">── production ─────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">production web-01    deploy@10.0.0.11:22     ●  12.4%      43% 16.0G          61% /   0.42   48ms</tspan>
+    <tspan x="16" dy="16">production web-02    deploy@10.0.0.12:22     ●   8.1%      38% 16.0G          56% /   0.31   52ms</tspan>
+    <tspan x="16" dy="16">production db-01     ops@10.0.0.21:22        ●  64.7%      78% 16.0G          82% /   2.10   61ms</tspan>
+    <tspan x="16" dy="16">── edge ───────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">edge       bastion   jump@bastion.example:22 ●   3.2%      22% 16.0G          41% /   0.05   28ms</tspan>
+    <tspan x="16" dy="16">edge       ci-runner ci@ci.example:22        ●  41.0%      55% 16.0G          70% /   1.20   90ms</tspan>
+    <tspan x="16" dy="16">── lab ────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">lab        old-box   lab@192.168.9.9:22      ○      —              —              —      —      —</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">k/↑ up • j/↓ down • enter detail • / search • o open ssh • t transfer • p set password • ? help …</tspan>
+  </text>
+  <text class="frame f2" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">GROUP      HOST      ADDR                    ST    CPU            MEM           DISK   LOAD    LAT</tspan>
+    <tspan x="16" dy="16">── production ─────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">production web-01    deploy@10.0.0.11:22     ●  18.9%      43% 16.0G          61% /   0.42   48ms</tspan>
+    <tspan x="16" dy="16">production web-02    deploy@10.0.0.12:22     ●   8.1%      38% 16.0G          56% /   0.31   52ms</tspan>
+    <tspan x="16" dy="16">production db-01     ops@10.0.0.21:22        ●  71.2%      78% 16.0G          82% /   2.45   61ms</tspan>
+    <tspan x="16" dy="16">── edge ───────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">edge       bastion   jump@bastion.example:22 ●   3.2%      22% 16.0G          41% /   0.05   28ms</tspan>
+    <tspan x="16" dy="16">edge       ci-runner ci@ci.example:22        ●  41.0%      55% 16.0G          70% /   1.20   90ms</tspan>
+    <tspan x="16" dy="16">── lab ────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">lab        old-box   lab@192.168.9.9:22      ○      —              —              —      —      —</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">k/↑ up • j/↓ down • enter detail • / search • o open ssh • t transfer • p set password • ? help …</tspan>
+  </text>
+  <text class="frame f3" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config  filter:&#34;web&#34; 2 hits
+    <tspan x="16" dy="16">/ web                                      </tspan>
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">GROUP      HOST   ADDR                ST    CPU            MEM           DISK   LOAD    LAT</tspan>
+    <tspan x="16" dy="16">── production ─────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">production web-01 deploy@10.0.0.11:22 ●  12.4%      43% 16.0G          61% /   0.42   48ms</tspan>
+    <tspan x="16" dy="16">production web-02 deploy@10.0.0.12:22 ●   8.1%      38% 16.0G          56% /   0.31   52ms</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">↑/↓ select · enter confirm · esc clear</tspan>
+  </text>
+  <text class="frame f4" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">production · web-01  deploy@10.0.0.11:22</tspan>
+    <tspan x="16" dy="16">CPU      12.4% ██░░░░░░░░░░░░░░░░░░</tspan>
+    <tspan x="16" dy="16">Memory   43.2% ████████░░░░░░░░░░░░  6.9G / 16.0G</tspan>
+    <tspan x="16" dy="16">Load    0.42 0.38 0.34</tspan>
+    <tspan x="16" dy="16">Uptime  0h 0m</tspan>
+    <tspan x="16" dy="16">Latency 48ms</tspan>
+    <tspan x="16" dy="16">Fetched 2026-09-09T23:15:27+08:00</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">Disks</tspan>
+    <tspan x="16" dy="16">  /                     61.0% ████████████░░░░░░░░  61.0G / 100.0G</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">k/↑ up • j/↓ down • enter detail • / search • o open ssh • t transfer • p set password • ? help …</tspan>
+  </text>
+  <text class="frame f5" x="16" y="29">
+sguala  5/6 online  refresh 10s  sort:config
+    <tspan x="16" dy="16">───────────────────────────────────────────────────────────────────────────────────────────────────</tspan>
+    <tspan x="16" dy="16">transfer  host web-01</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">choose action:</tspan>
+    <tspan x="16" dy="16">&gt; get (download)</tspan>
+    <tspan x="16" dy="16">  put (upload)</tspan>
+    <tspan x="16" dy="16">  sftp (interactive)</tspan>
+    <tspan x="16" dy="16"></tspan>
+    <tspan x="16" dy="16">enter confirm · esc back</tspan>
+  </text>
+</svg>

@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/metric"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/metric"
 )
 
 func TestHostMatches(t *testing.T) {

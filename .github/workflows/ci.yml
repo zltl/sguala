@@ -10,16 +10,13 @@ jobs:
   cli:
     name: CLI test & build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: cli
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: cli/go.mod
-          cache-dependency-path: cli/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Test
         env:

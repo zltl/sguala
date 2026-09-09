@@ -2,6 +2,13 @@
 
 ## [2.1.1] - unreleased
 
+### Repo layout
+- CLI is first-class at repo root (`cmd/`, `internal/`, `make build`); Electron moved to `desktop/`
+- Module path: `github.com/zltl/sguala`
+
+### Demo assets
+- ASCII still / asciinema cast / animated SVG from `make demo` (`doc/tui.txt`, `doc/tui.cast`, `doc/tui.svg`)
+
 ### Pure Go SSH / SFTP
 - Interactive `o`, `get` / `put` / `sftp`, and TUI `t` no longer shell out to OpenSSH
 - Same dial stack as metrics: IdentityFile, agent, stored password, ProxyJump
@@ -18,7 +25,7 @@
 
 ## [2.1.0] - 2026-09-07
 
-### CLI (`cli/`)
+### CLI
 
 - Hosts from `~/.ssh/config` (groups via unindented `#` section comments)
 - Auto-accept unknown host keys for list metrics; dynamic GROUP/HOST/ADDR columns

@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/zltl/sguala/cli/internal/bundle"
-	"github.com/zltl/sguala/cli/internal/config"
-	"github.com/zltl/sguala/cli/internal/engine"
-	"github.com/zltl/sguala/cli/internal/remote"
-	"github.com/zltl/sguala/cli/internal/secret"
-	"github.com/zltl/sguala/cli/internal/ui"
+	"github.com/zltl/sguala/internal/bundle"
+	"github.com/zltl/sguala/internal/config"
+	"github.com/zltl/sguala/internal/engine"
+	"github.com/zltl/sguala/internal/remote"
+	"github.com/zltl/sguala/internal/secret"
+	"github.com/zltl/sguala/internal/ui"
 	"golang.org/x/term"
 )
 

@@ -88,7 +88,7 @@ typings/
 # Electron-Forge
 out/
 
-# sguala-cli (Go)
-cli/bin/
-cli/dist/
+# sguala CLI (Go)
+bin/
+dist/
 

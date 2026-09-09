@@ -1,9 +1,8 @@
-# sguala-cli — agentless SSH monitor (TUI)
+# sguala — agentless SSH monitor (CLI / TUI)
 #
-# Independent of the Electron desktop app under the repo root.
-# Does not share runtime or config format with the desktop UI.
+# Primary product at repo root. Optional Electron UI lives under desktop/.
 
-.PHONY: build run test tidy clean fmt
+.PHONY: build run test tidy clean fmt install demo
 
 BIN := bin/sguala
 VERSION ?= 0.2.0
@@ -29,3 +28,7 @@ clean:
 
 install: build
 	install -m 755 $(BIN) "$(HOME)/.local/bin/sguala"
+
+# Regenerate ASCII still / cast / SVG demo assets under doc/
+demo:
+	go run ./scripts/gendemo
