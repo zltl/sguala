@@ -7,7 +7,7 @@
 - Module path: `github.com/zltl/sguala`
 
 ### Demo assets
-- ASCII still / asciinema cast / animated SVG from `make demo` (`doc/tui.txt`, `doc/tui.cast`, `doc/tui.svg`)
+- ASCII video from `make demo` (asciinema cast + animated SVG: `doc/tui.cast`, `doc/tui.svg`)
 
 ### Pure Go SSH / SFTP
 - Interactive `o`, `get` / `put` / `sftp`, and TUI `t` no longer shell out to OpenSSH

@@ -48,11 +48,6 @@ func main() {
 		plain[i] = stripANSI(f)
 	}
 
-	still := plain[0]
-	if err := os.WriteFile(filepath.Join(doc, "tui.txt"), []byte(still+"\n"), 0o644); err != nil {
-		fail(err)
-	}
-
 	if err := writeCast(filepath.Join(doc, "tui.cast"), frames); err != nil {
 		fail(err)
 	}
@@ -63,7 +58,8 @@ func main() {
 		fail(err)
 	}
 
-	fmt.Printf("wrote doc/tui.txt doc/tui.cast doc/tui.svg scripts/play-tui-demo.sh (%d frames)\n", len(frames))
+	_ = os.Remove(filepath.Join(doc, "tui.txt")) // legacy still; video-only now
+	fmt.Printf("wrote doc/tui.cast doc/tui.svg scripts/play-tui-demo.sh (%d frames)\n", len(frames))
 }
 
 func repoRoot() (string, error) {

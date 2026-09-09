@@ -29,6 +29,6 @@ clean:
 install: build
 	install -m 755 $(BIN) "$(HOME)/.local/bin/sguala"
 
-# Regenerate ASCII still / cast / SVG demo assets under doc/
+# Regenerate ASCII video demo assets under doc/ (cast + SVG)
 demo:
 	go run ./scripts/gendemo

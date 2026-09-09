@@ -4,25 +4,6 @@ Agentless Linux server monitor — **Go CLI / TUI** (primary) and optional Elect
 
 ## Demo
 
-ASCII still (live table from `~/.ssh/config`):
-
-```text
-sguala  5/6 online  refresh 10s  sort:config
-───────────────────────────────────────────────────────────────────────────────────────────────────
-GROUP      HOST      ADDR                    ST    CPU            MEM           DISK   LOAD    LAT
-── production ─────────────────────────────────────────────────────────────────────────────────────
-production web-01    deploy@10.0.0.11:22     ●   12.4%      43% 16.0G          61% /   0.42   48ms
-production web-02    deploy@10.0.0.12:22     ●    8.1%      38% 16.0G          56% /   0.31   52ms
-production db-01     ops@10.0.0.21:22        ●   64.7%      78% 16.0G          82% /   2.10   61ms
-── edge ───────────────────────────────────────────────────────────────────────────────────────────
-edge       bastion   jump@bastion.example:22 ●    3.2%      22% 16.0G          41% /   0.05   28ms
-edge       ci-runner ci@ci.example:22        ●   41.0%      55% 16.0G          70% /   1.20   90ms
-── lab ────────────────────────────────────────────────────────────────────────────────────────────
-lab        old-box   lab@192.168.9.9:22      ○       —              —              —      —      —
-
-k/↑ up • j/↓ down • enter detail • / search • o open ssh • t transfer • p set password • ? help …
-```
-
 ASCII video (overview → metrics tick → search → detail → transfer):
 
 ![sguala TUI demo](./doc/tui.svg)
@@ -32,10 +13,10 @@ Replay locally:
 ```bash
 ./scripts/play-tui-demo.sh          # frame-by-frame in your terminal
 asciinema play doc/tui.cast         # if you have asciinema
-make demo                           # regenerate doc/tui.{txt,cast,svg}
+make demo                           # regenerate doc/tui.{cast,svg}
 ```
 
-Full still: [`doc/tui.txt`](./doc/tui.txt) · cast: [`doc/tui.cast`](./doc/tui.cast)
+Cast: [`doc/tui.cast`](./doc/tui.cast)
 
 ## Install / build (CLI)
 
